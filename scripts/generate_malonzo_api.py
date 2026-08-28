@@ -46,6 +46,9 @@ SYMBOLS = {
     "context_requires_c": r"C_rawRequires_\d+",
     "context_relation_c": r"C_rawRequiresRelation_\d+",
     "context_some_c": r"C_rawRequiresSome_\d+",
+    "context_prefers_c": r"C_rawPrefers_\d+",
+    "context_prefers_relation_c": r"C_rawPrefersRelation_\d+",
+    "context_prefers_some_c": r"C_rawPrefersSome_\d+",
     "context_constraint_t": r"T_RawContextConstraint_\d+",
     "context_constraint_c": r"C_rawContextConstraint_\d+",
     "context_t": r"T_RawContext_\d+",
@@ -56,6 +59,7 @@ SYMBOLS = {
     "runtime_check": r"d_runtimeCheck_\d+",
     "contextual_runtime_check": r"d_contextualRuntimeCheck_\d+",
     "context_layer_check": r"d_contextLayerCheck_\d+",
+    "context_preference_check": r"d_contextPreferenceCheck_\d+",
     "preference_check": r"d_preferenceRuntimeCheck_\d+",
     "promotion_check": r"d_checkPromotion_\d+",
 }
@@ -89,10 +93,12 @@ module Metonymy.CheckerAPI
   , RuntimeClause, runtimeClause
   , RawLexicalAnchor, rawLexicalAnchor
   , RawContextPayload, rawRequires, rawRequiresRelation, rawRequiresSome
+  , rawPrefers, rawPrefersRelation, rawPrefersSome
   , RawContextConstraint, rawContextConstraint
   , RawContext, rawContext
   , RawDiscourseEvidence, targetSalient
-  , check, runtimeCheck, contextLayerCheck, contextualRuntimeCheck, preferenceRuntimeCheck, checkPromotion
+  , check, runtimeCheck, contextLayerCheck, contextPreferenceCheck
+  , contextualRuntimeCheck, preferenceRuntimeCheck, checkPromotion
   ) where
 
 import Data.Text (Text)
@@ -189,6 +195,12 @@ rawRequiresRelation :: Text -> Text -> RawContextPayload
 rawRequiresRelation = {a}.{symbol["context_relation_c"]}
 rawRequiresSome :: Text -> Requirement -> RawContextPayload
 rawRequiresSome = {a}.{symbol["context_some_c"]}
+rawPrefers :: Requirement -> RawContextPayload
+rawPrefers = {a}.{symbol["context_prefers_c"]}
+rawPrefersRelation :: Text -> Text -> RawContextPayload
+rawPrefersRelation = {a}.{symbol["context_prefers_relation_c"]}
+rawPrefersSome :: Text -> Requirement -> RawContextPayload
+rawPrefersSome = {a}.{symbol["context_prefers_some_c"]}
 
 type RawContextConstraint = {a}.{symbol["context_constraint_t"]}
 rawContextConstraint :: RawLexicalAnchor -> RawContextPayload -> Text -> RawContextConstraint
@@ -220,6 +232,13 @@ contextLayerCheck ::
   Text ->
   Bool
 contextLayerCheck = {a}.{symbol["context_layer_check"]}
+
+contextPreferenceCheck ::
+  KnowledgeBase ->
+  RawContextConstraint ->
+  Text ->
+  Bool
+contextPreferenceCheck = {a}.{symbol["context_preference_check"]}
 
 contextualRuntimeCheck ::
   KnowledgeBase ->

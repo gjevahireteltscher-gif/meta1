@@ -33,6 +33,7 @@ main = do
   arguments <- getArgs
   let contextualSnapshotPath = requestedSnapshotPath arguments
       contextualScenarioPath = requestedScenarioPath arguments
+      formalFilteringEnabled = "--no-formal-filtering" `notElem` arguments
       commandArguments = stripContextualOptions arguments
   rows <- loadAuthorWorkRows "data/wikidata-author-works.tsv"
   localPredicates <- loadPredicates "data/predicates.tsv"
@@ -110,12 +111,17 @@ main = do
       runOpenBatch knowledgeBase endpointSnapshot actionRoles ablation
     ["contextual-fiber", scenarioName] ->
       case find ((== scenarioName) . contextScenarioName) contextualScenarios of
-        Just scenario -> runContextualFiber qidSnapshot scenario
+        Just scenario ->
+          runContextualFiber formalFilteringEnabled qidSnapshot scenario
         Nothing -> die ("unknown contextual scenario: " <> scenarioName)
     ["contextual-contract", scenarioName, target] ->
       case find ((== scenarioName) . contextScenarioName) contextualScenarios of
         Just scenario ->
-          runContextualContraction qidSnapshot scenario (EntityId target)
+          runContextualContraction
+            formalFilteringEnabled
+            qidSnapshot
+            scenario
+            (EntityId target)
         Nothing -> die ("unknown contextual scenario: " <> scenarioName)
     _ -> usage
 
@@ -248,9 +254,9 @@ uniqueCandidates =
         candidateAbstractTree left == candidateAbstractTree right
     )
 
-runContextualFiber :: Snapshot -> ContextScenario -> IO ()
-runContextualFiber snapshot scenario =
-  case contextualFiberChecked snapshot allowedRelations maxDepth context of
+runContextualFiber :: Bool -> Snapshot -> ContextScenario -> IO ()
+runContextualFiber formalFiltering snapshot scenario =
+  case towerResult of
     Left message -> die ("contextual fiber failed: " <> message)
     Right stages -> do
       putStrLn ("graph_sha256=" <> snapshotHash snapshot)
@@ -278,27 +284,55 @@ runContextualFiber snapshot scenario =
         ( "  survivors="
             <> show (map (fineTarget . contextualFineMeaning) (stageCandidates stage))
         )
-      putStrLn "  agda-layer-check=true"
+      putStrLn
+        ( "  agda-layer-check="
+            <> if formalFiltering then "true" else "disabled"
+        )
       mapM_ (putStrLn . ("  obstruction=" <>) . show) (stageObstructions stage)
+      case stageConstraint stage of
+        Just constraint
+          | payloadIsPreference (constraintPayload constraint) -> do
+              putStrLn
+                ( "  preferred="
+                    <> show
+                      ( map
+                          (fineTarget . contextualFineMeaning)
+                          (stagePreferredCandidates stage)
+                      )
+                )
+              mapM_
+                (putStrLn . ("  preference-miss=" <>) . show)
+                (stagePreferenceMisses stage)
+        _ -> pure ()
 
     renderConstraint constraint =
       show (constraintPayload constraint)
         <> "@"
         <> anchorLemma (constraintOrigin constraint)
 
+    towerResult =
+      if formalFiltering
+        then contextualFiberChecked snapshot allowedRelations maxDepth context
+        else contextualFiber snapshot allowedRelations maxDepth context
+
 runContextualContraction ::
+  Bool ->
   Snapshot ->
   ContextScenario ->
   EntityId ->
   IO ()
-runContextualContraction snapshot scenario target =
+runContextualContraction formalFiltering snapshot scenario target =
   case
-      contextualContractionChecked
-        snapshot
-        (contextScenarioRelations scenario)
-        (contextScenarioMaxDepth scenario)
-        (contextScenarioContext scenario)
-        target of
+      if formalFiltering
+        then
+          contextualContractionChecked
+            snapshot
+            (contextScenarioRelations scenario)
+            (contextScenarioMaxDepth scenario)
+            (contextScenarioContext scenario)
+            target
+        else
+          Left "formal-filtering-disabled-for-contraction" of
     Left message ->
       die ("contextual contraction rejected: " <> message)
     Right result -> do
@@ -324,7 +358,22 @@ runContextualContraction snapshot scenario target =
         ( "  survivors="
             <> show (stageTargets stage)
         )
-      putStrLn "  agda-layer-check=true"
+      putStrLn
+        ( "  agda-layer-check="
+            <> if formalFiltering then "true" else "disabled"
+        )
+      case stageConstraint stage of
+        Just constraint
+          | payloadIsPreference (constraintPayload constraint) ->
+              putStrLn
+                ( "  preferred="
+                    <> show
+                      ( map
+                          (fineTarget . contextualFineMeaning)
+                          (stagePreferredCandidates stage)
+                      )
+                )
+        _ -> pure ()
 
     renderConstraint constraint =
       show (constraintPayload constraint)
@@ -759,4 +808,6 @@ stripContextualOptions (name : _ : rest)
   | name `elem` ["--snapshot", "--scenarios"] =
       stripContextualOptions rest
 stripContextualOptions (value : rest) =
-  value : stripContextualOptions rest
+  if value == "--no-formal-filtering"
+    then stripContextualOptions rest
+    else value : stripContextualOptions rest

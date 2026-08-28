@@ -574,6 +574,9 @@ data RawContextPayload : Set where
   rawRequires : Requirement → RawContextPayload
   rawRequiresRelation : String → String → RawContextPayload
   rawRequiresSome : String → Requirement → RawContextPayload
+  rawPrefers : Requirement → RawContextPayload
+  rawPrefersRelation : String → String → RawContextPayload
+  rawPrefersSome : String → Requirement → RawContextPayload
 
 record RawContextConstraint : Set where
   constructor rawContextConstraint
@@ -625,6 +628,82 @@ rawConstraintHolds kb candidate constraint with rawConstraintPayload constraint
     stringEqual relation (factRelation fact)
       and stringEqual candidate (factSource fact)
       and satisfiesRequirement kb (factTarget fact) requirement
+... | rawPrefers _ = true
+... | rawPrefersRelation _ _ = true
+... | rawPrefersSome _ _ = true
+
+rawPreferenceMatches :
+  KnowledgeBase →
+  String →
+  RawContextConstraint →
+  Bool
+rawPreferenceMatches kb candidate constraint with rawConstraintPayload constraint
+... | rawRequires _ = true
+... | rawRequiresRelation _ _ = true
+... | rawRequiresSome _ _ = true
+... | rawPrefers requirement =
+  satisfiesRequirement kb candidate requirement
+... | rawPrefersRelation relation target =
+  relationExists kb (edge relation candidate target)
+... | rawPrefersSome relation requirement =
+  any matches (relationFacts kb)
+  where
+  matches : RelationFact → Bool
+  matches fact =
+    stringEqual relation (factRelation fact)
+      and stringEqual candidate (factSource fact)
+      and satisfiesRequirement kb (factTarget fact) requirement
+
+contextPreferenceCheck :
+  KnowledgeBase →
+  RawContextConstraint →
+  String →
+  Bool
+contextPreferenceCheck kb constraint candidate =
+  anchorValid (rawConstraintOrigin constraint)
+    and not (stringEqual (rawConstraintProvenance constraint) "")
+    and rawPreferenceMatches kb candidate constraint
+
+preferenceRequirementDoesNotFilter :
+  (kb : KnowledgeBase) →
+  (candidate : String) →
+  (anchor : RawLexicalAnchor) →
+  (requirement : Requirement) →
+  (provenance : String) →
+  rawConstraintHolds
+    kb
+    candidate
+    (rawContextConstraint anchor (rawPrefers requirement) provenance)
+    ≡ true
+preferenceRequirementDoesNotFilter kb candidate anchor requirement provenance =
+  refl
+
+preferenceRelationDoesNotFilter :
+  (kb : KnowledgeBase) →
+  (candidate relation target : String) →
+  (anchor : RawLexicalAnchor) →
+  (provenance : String) →
+  rawConstraintHolds
+    kb
+    candidate
+    (rawContextConstraint anchor (rawPrefersRelation relation target) provenance)
+    ≡ true
+preferenceRelationDoesNotFilter kb candidate relation target anchor provenance =
+  refl
+
+preferenceExistentialDoesNotFilter :
+  (kb : KnowledgeBase) →
+  (candidate relation : String) →
+  (requirement : Requirement) →
+  (anchor : RawLexicalAnchor) →
+  (provenance : String) →
+  rawConstraintHolds
+    kb
+    candidate
+    (rawContextConstraint anchor (rawPrefersSome relation requirement) provenance)
+    ≡ true
+preferenceExistentialDoesNotFilter kb candidate relation requirement anchor provenance =
+  refl
 
 rawConstraintsHold :
   KnowledgeBase →

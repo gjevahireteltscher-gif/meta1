@@ -9,6 +9,7 @@ module Metonymy.Contextual
   , SnapshotObstruction (..)
   , ContextualCandidate (..)
   , FiberStage (..)
+  , payloadIsPreference
   , validateContext
   , contextualFiber
   , stageTargets
@@ -32,6 +33,9 @@ data ConstraintPayload
   = Requires Requirement
   | RequiresRelation Relation EntityId
   | RequiresSome Relation Requirement
+  | Prefers Requirement
+  | PrefersRelation Relation EntityId
+  | PrefersSome Relation Requirement
   deriving stock (Eq, Show)
 
 data ContextConstraint = ContextConstraint
@@ -86,6 +90,8 @@ data FiberStage = FiberStage
   , stageConstraint :: Maybe ContextConstraint
   , stageCandidates :: [ContextualCandidate]
   , stageObstructions :: [SnapshotObstruction]
+  , stagePreferredCandidates :: [ContextualCandidate]
+  , stagePreferenceMisses :: [SnapshotObstruction]
   }
   deriving stock (Eq, Show)
 
@@ -133,13 +139,22 @@ contextualFiber snapshot relations maxDepth context = do
                   , fiberMaxDepth = maxDepth
                   }
           ]
-      initialStage = FiberStage 0 Nothing initial []
+      initialStage = FiberStage 0 Nothing initial [] [] []
   pure (initialStage : applyConstraints kb initial 1 (contextConstraints context))
   where
     applyConstraints _ _ _ [] = []
     applyConstraints kb candidates index (constraint : rest) =
-      let (survivors, obstructions) = applyConstraint kb constraint candidates
-          stage = FiberStage index (Just constraint) survivors obstructions
+      let (matched, misses) = applyConstraint kb constraint candidates
+          preference = payloadIsPreference (constraintPayload constraint)
+          survivors = if preference then candidates else matched
+          stage =
+            FiberStage
+              index
+              (Just constraint)
+              survivors
+              (if preference then [] else misses)
+              (if preference then matched else [])
+              (if preference then misses else [])
        in stage : applyConstraints kb survivors (index + 1) rest
 
 applyConstraint ::
@@ -188,8 +203,50 @@ applyConstraint kb constraint =
               )
             Nothing ->
               (survivors, MissingRelated constraint target relation requirement : obstructions)
+        Prefers requirement ->
+          applyRequirement requirement
+        PrefersRelation relation expectedTarget ->
+          case relationProof relation target expectedTarget of
+            Just proof ->
+              (candidate {contextualProofs = contextualProofs candidate <> [RelationConstraintProof constraint proof]} : survivors, obstructions)
+            Nothing ->
+              (survivors, MissingRelation constraint target relation expectedTarget : obstructions)
+        PrefersSome relation requirement ->
+          applyRelated relation requirement
       where
         target = fineTarget (contextualFineMeaning candidate)
+
+        applyRequirement requirement =
+          case proveRequirement kb target requirement of
+            Just proofs ->
+              ( candidate
+                  { contextualProofs =
+                      contextualProofs candidate
+                        <> [RequirementConstraintProof constraint proofs]
+                  }
+                  : survivors
+              , obstructions
+              )
+            Nothing ->
+              (survivors, MissingRequirement constraint target : obstructions)
+
+        applyRelated relation requirement =
+          case relatedProof relation target requirement of
+            Just (relationEvidence, requirementEvidence) ->
+              ( candidate
+                  { contextualProofs =
+                      contextualProofs candidate
+                        <> [ RelatedConstraintProof
+                               constraint
+                               relationEvidence
+                               requirementEvidence
+                           ]
+                  }
+                  : survivors
+              , obstructions
+              )
+            Nothing ->
+              (survivors, MissingRelated constraint target relation requirement : obstructions)
 
     relationProof relation source target =
       case
@@ -223,6 +280,12 @@ applyConstraint kb constraint =
 
 stageTargets :: FiberStage -> [EntityId]
 stageTargets = map (fineTarget . contextualFineMeaning) . stageCandidates
+
+payloadIsPreference :: ConstraintPayload -> Bool
+payloadIsPreference (Prefers _) = True
+payloadIsPreference (PrefersRelation _ _) = True
+payloadIsPreference (PrefersSome _ _) = True
+payloadIsPreference _ = False
 
 uniqueCandidates :: [ContextualCandidate] -> [ContextualCandidate]
 uniqueCandidates =

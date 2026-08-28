@@ -52,6 +52,12 @@ def main() -> None:
         type=Path,
         default=Path("data/verbnet-actions.tsv"),
     )
+    parser.add_argument(
+        "--framenet-capabilities",
+        type=Path,
+        default=Path("data/framenet-role-capabilities.json"),
+    )
+    parser.add_argument("--disable-framenet", action="store_true")
     args = parser.parse_args()
     aliases = {}
     for row in rows(args.snapshot / "aliases.jsonl"):
@@ -84,7 +90,23 @@ def main() -> None:
     role = action["role"]
     requirement = action["requirement"]
     candidates = aliases.get(source_text.casefold(), [])
-    action_frames = load_action_frames(args.verbnet_actions).get(lemma, [])
+    action_frames = (
+        []
+        if args.disable_framenet
+        else load_action_frames(args.verbnet_actions).get(lemma, [])
+    )
+    frame_names = {frame["frame"] for frame in action_frames}
+    frame_capabilities = (
+        json.loads(args.framenet_capabilities.read_text(encoding="utf-8"))
+        if not args.disable_framenet and args.framenet_capabilities.exists()
+        else {"projections": []}
+    )
+    matching_frame_projections = [
+        projection
+        for projection in frame_capabilities.get("projections", [])
+        if projection["frame"] in frame_names
+        and projection["hole_role"] == role
+    ]
     snapshot_relations = list(
         dict.fromkeys(rule["internal"] for rule in snapshot_rules["relations"])
     )
@@ -116,6 +138,7 @@ def main() -> None:
         "source_qid_candidates": sorted(candidates),
         "action": lemma,
         "frames": action_frames,
+        "frame_role_projections": matching_frame_projections,
         "role": role,
         "bridge_relations": bridge_relations,
         "max_depth": language_rules.get("max_bridge_depth", 1),
@@ -134,7 +157,13 @@ def main() -> None:
                     "start": action["start"],
                     "end": action["end"],
                 },
-                "payload": {"requires": requirement},
+                "payload": {
+                    (
+                        "requires"
+                        if action["strength"] == "hard"
+                        else "prefers"
+                    ): requirement
+                },
                 "provenance": action["provenance"],
             }
         ],

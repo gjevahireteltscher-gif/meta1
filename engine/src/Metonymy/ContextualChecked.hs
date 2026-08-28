@@ -8,7 +8,10 @@ import Metonymy.Contextual
 import Metonymy.Ontology (proveRequirement)
 import Metonymy.Resolution (contractTarget)
 import Metonymy.Types
-import Metonymy.Verified (verifyContextLayerWithAgda)
+import Metonymy.Verified
+  ( verifyContextLayerWithAgda
+  , verifyPreferenceLayerWithAgda
+  )
 
 contextualFiberChecked ::
   Snapshot ->
@@ -30,6 +33,12 @@ contextualFiberChecked snapshot relations maxDepth context = do
               }
           acceptedTargets = stageTargets stage
           rejectedTargets = map obstructionTarget (stageObstructions stage)
+          preferredTargets =
+            map
+              (fineTarget . contextualFineMeaning)
+              (stagePreferredCandidates stage)
+          preferenceMissTargets =
+            map obstructionTarget (stagePreferenceMisses stage)
       if all (verifyContextLayerWithAgda snapshot prefixContext) acceptedTargets
         then Right ()
         else Left ("agda-rejected-survivor-at-stage-" <> show (stageIndex stage))
@@ -38,6 +47,20 @@ contextualFiberChecked snapshot relations maxDepth context = do
           rejectedTargets
         then Right ()
         else Left ("agda-accepted-obstruction-at-stage-" <> show (stageIndex stage))
+      case stageConstraint stage of
+        Just constraint
+          | payloadIsPreference (constraintPayload constraint) -> do
+              if all
+                  (verifyPreferenceLayerWithAgda snapshot constraint)
+                  preferredTargets
+                then Right ()
+                else Left ("agda-rejected-preference-at-stage-" <> show (stageIndex stage))
+              if all
+                  (not . verifyPreferenceLayerWithAgda snapshot constraint)
+                  preferenceMissTargets
+                then Right ()
+                else Left ("agda-accepted-preference-miss-at-stage-" <> show (stageIndex stage))
+        _ -> Right ()
       verifyStages rest
 
 obstructionTarget :: SnapshotObstruction -> EntityId

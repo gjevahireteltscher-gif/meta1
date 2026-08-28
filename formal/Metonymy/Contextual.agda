@@ -22,6 +22,9 @@ data ConstraintPayload : Set where
   requires : Requirement → ConstraintPayload
   requiresRelation : String → String → ConstraintPayload
   requiresSome : String → Requirement → ConstraintPayload
+  prefers : Requirement → ConstraintPayload
+  prefersRelation : String → String → ConstraintPayload
+  prefersSome : String → Requirement → ConstraintPayload
 
 record LexicalAnchor : Set where
   constructor lexicalAnchor
@@ -73,6 +76,12 @@ constraintHolds kb candidate constraint with constraintPayload constraint
     stringEqual relation (RelationFact.factRelation fact)
       and stringEqual candidate (RelationFact.factSource fact)
       and satisfiesRequirement kb (RelationFact.factTarget fact) requirement
+... | prefers _ =
+  not (stringEqual (constraintProvenance constraint) "")
+... | prefersRelation _ _ =
+  not (stringEqual (constraintProvenance constraint) "")
+... | prefersSome _ _ =
+  not (stringEqual (constraintProvenance constraint) "")
 
 constraintsHold :
   KnowledgeBase →

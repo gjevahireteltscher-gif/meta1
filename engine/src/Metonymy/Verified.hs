@@ -4,6 +4,7 @@ module Metonymy.Verified
   , verifyPreferenceRuntimeWithAgda
   , verifyContextualRuntimeWithAgda
   , verifyContextLayerWithAgda
+  , verifyPreferenceLayerWithAgda
   , verifyPromotionWithAgda
   ) where
 
@@ -91,6 +92,17 @@ verifyContextLayerWithAgda snapshot context candidate =
     (toAgdaContext context)
     (text (show candidate))
 
+verifyPreferenceLayerWithAgda ::
+  Snapshot ->
+  ContextConstraint ->
+  EntityId ->
+  Bool
+verifyPreferenceLayerWithAgda snapshot constraint candidate =
+  Agda.contextPreferenceCheck
+    (toAgdaKnowledgeBase (snapshotKnowledgeBase snapshot) [])
+    (toAgdaContextConstraint constraint)
+    (text (show candidate))
+
 toAgdaContext :: Context -> Agda.RawContext
 toAgdaContext context =
   Agda.rawContext
@@ -109,6 +121,16 @@ toAgdaContextConstraint constraint =
         Agda.rawRequiresRelation (text (show relation)) (text (show target))
       RequiresSome relation requirement ->
         Agda.rawRequiresSome
+          (text (show relation))
+          (toAgdaRequirement requirement)
+      Prefers requirement ->
+        Agda.rawPrefers (toAgdaRequirement requirement)
+      PrefersRelation relation target ->
+        Agda.rawPrefersRelation
+          (text (show relation))
+          (text (show target))
+      PrefersSome relation requirement ->
+        Agda.rawPrefersSome
           (text (show relation))
           (toAgdaRequirement requirement)
     )
