@@ -476,6 +476,8 @@ def compile_gf_constraints(
                 provenance_parts.append("FrameNet:" + ",".join(frame_names))
             for projection in proposal.get("frame_role_projections", []):
                 provenance_parts.append(projection["provenance"])
+            for pattern in proposal.get("framenet_valence_patterns", []):
+                provenance_parts.append(pattern["provenance"])
             if capability:
                 payload = {
                     "requires_some": {

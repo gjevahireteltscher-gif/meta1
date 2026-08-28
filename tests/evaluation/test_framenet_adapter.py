@@ -85,6 +85,49 @@ class FrameNetAdapterTests(unittest.TestCase):
                 all(projection["evidence_count"] > 0 for projection in result["projections"])
             )
 
+    def test_imported_snapshot_drives_proposer_frames_and_valence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            imported = Path(directory) / "framenet"
+            subprocess.run(
+                [
+                    "python3",
+                    str(ROOT / "scripts/import_framenet_context.py"),
+                    "--framenet-dir",
+                    str(FIXTURE),
+                    "--output",
+                    str(imported),
+                ],
+                check=True,
+            )
+            completed = subprocess.run(
+                [
+                    "python3",
+                    str(ROOT / "scripts/propose_contextual_scenario.py"),
+                    "--snapshot",
+                    str(ROOT / "data/wikidata-openalex-snapshot"),
+                    "--sentence",
+                    "Waterloo declared a program",
+                    "--source",
+                    "Waterloo",
+                    "--framenet-snapshot",
+                    str(imported),
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+                cwd=ROOT,
+            )
+            proposal = json.loads(completed.stdout)
+            self.assertEqual(
+                {frame["frame"] for frame in proposal["frames"]},
+                {"Statement"},
+            )
+            self.assertEqual(len(proposal["framenet_valence_patterns"]), 1)
+            self.assertIn(
+                "snapshot:",
+                proposal["frames"][0]["provenance"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

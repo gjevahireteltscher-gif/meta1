@@ -101,6 +101,7 @@ def main() -> None:
     parser.add_argument(
         "--gf-nouns", default="data/contextual-gf-nouns.json"
     )
+    parser.add_argument("--framenet-snapshot", type=Path)
     parser.add_argument(
         "--ablation",
         choices=[
@@ -129,6 +130,10 @@ def main() -> None:
         command.extend(["--target-surface", args.contract_target])
     if args.ablation == "no-framenet":
         command.append("--disable-framenet")
+    elif args.framenet_snapshot:
+        command.extend(
+            ["--framenet-snapshot", str(args.framenet_snapshot)]
+        )
     proposal = json.loads(subprocess.run(command, check=True, text=True, capture_output=True).stdout)
     if proposal["status"] != "ready":
         print(json.dumps(proposal, ensure_ascii=False, indent=2, sort_keys=True))

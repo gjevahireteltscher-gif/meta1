@@ -20,6 +20,32 @@ def rows(path: Path):
         return [json.loads(line) for line in source if line.strip()]
 
 
+def load_framenet_snapshot(path: Path, lemma: str) -> tuple[list[dict], list[dict]]:
+    manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+    lexical_units = [
+        row
+        for row in rows(path / "lexical-units.jsonl")
+        if row["name"].rsplit(".", 1)[0].casefold() == lemma.casefold()
+    ]
+    identifiers = {row["id"] for row in lexical_units}
+    patterns = [
+        row
+        for row in rows(path / "valence-patterns.jsonl")
+        if row["lexical_unit_id"] in identifiers
+    ]
+    frames = [
+        {
+            "frame": row["frame"],
+            "action_id": f"FrameNet-LU:{row['id']}",
+            "provenance": (
+                f"{row['provenance']}:snapshot:{manifest['source_sha256']}"
+            ),
+        }
+        for row in lexical_units
+    ]
+    return frames, patterns
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--snapshot", required=True, type=Path)
@@ -58,6 +84,7 @@ def main() -> None:
         default=Path("data/framenet-role-capabilities.json"),
     )
     parser.add_argument("--disable-framenet", action="store_true")
+    parser.add_argument("--framenet-snapshot", type=Path)
     args = parser.parse_args()
     aliases = {}
     for row in rows(args.snapshot / "aliases.jsonl"):
@@ -95,6 +122,16 @@ def main() -> None:
         if args.disable_framenet
         else load_action_frames(args.verbnet_actions).get(lemma, [])
     )
+    framenet_valence_patterns = []
+    if (
+        not args.disable_framenet
+        and args.framenet_snapshot
+        and (args.framenet_snapshot / "manifest.json").exists()
+    ):
+        imported_frames, framenet_valence_patterns = load_framenet_snapshot(
+            args.framenet_snapshot, lemma
+        )
+        action_frames = imported_frames or action_frames
     frame_names = {frame["frame"] for frame in action_frames}
     frame_capabilities = (
         json.loads(args.framenet_capabilities.read_text(encoding="utf-8"))
@@ -139,6 +176,7 @@ def main() -> None:
         "action": lemma,
         "frames": action_frames,
         "frame_role_projections": matching_frame_projections,
+        "framenet_valence_patterns": framenet_valence_patterns,
         "role": role,
         "bridge_relations": bridge_relations,
         "max_depth": language_rules.get("max_bridge_depth", 1),
