@@ -123,6 +123,110 @@ class QidSnapshotTests(unittest.TestCase):
                 check=True,
             )
 
+    def test_offline_index_resolves_exact_aliases_and_builds_cache(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "runtime.sqlite"
+            linker_input = Path(directory) / "inputs.jsonl"
+            linker_output = Path(directory) / "linker.json"
+            subprocess.run(
+                [
+                    "python3",
+                    str(RUNTIME_INDEX),
+                    "build",
+                    "--dump",
+                    str(DUMP),
+                    "--database",
+                    str(database),
+                ],
+                check=True,
+            )
+            lookup = subprocess.run(
+                [
+                    "python3",
+                    str(RUNTIME_INDEX),
+                    "lookup",
+                    "--database",
+                    str(database),
+                    "--alias",
+                    "Waterloo",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(
+                json.loads(lookup.stdout)["matches"][0]["id"], "Q639408"
+            )
+            linker_input.write_text(
+                json.dumps({"source": "Waterloo", "target": "physics"}) + "\n",
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [
+                    "python3",
+                    str(ROOT / "scripts/build_wikidata_linker_cache.py"),
+                    "--database",
+                    str(database),
+                    "--inputs",
+                    str(linker_input),
+                    "--output",
+                    str(linker_output),
+                ],
+                check=True,
+            )
+            cache = json.loads(linker_output.read_text(encoding="utf-8"))
+            self.assertGreaterEqual(cache["counts"]["resolved"], 1)
+            self.assertEqual(
+                next(
+                    row["id"]
+                    for row in cache["resolved"]
+                    if row["surface"] == "Waterloo"
+                ),
+                "Q639408",
+            )
+
+    def test_runtime_rules_materialize_extended_projected_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "runtime.sqlite"
+            snapshot = Path(directory) / "snapshot"
+            subprocess.run(
+                [
+                    "python3",
+                    str(RUNTIME_INDEX),
+                    "build",
+                    "--dump",
+                    str(DUMP),
+                    "--database",
+                    str(database),
+                ],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "python3",
+                    str(RUNTIME_INDEX),
+                    "materialize",
+                    "--database",
+                    str(database),
+                    "--source-qid",
+                    "Q639408",
+                    "--depth",
+                    "1",
+                    "--rules",
+                    str(ROOT / "data/wikidata-runtime-rules.json"),
+                    "--output",
+                    str(snapshot),
+                ],
+                check=True,
+            )
+            manifest = json.loads((snapshot / "manifest.json").read_text())
+            self.assertEqual(manifest["source"]["source_qids"], ["Q639408"])
+            self.assertIn("index_sha256", manifest["source"])
+            subprocess.run(
+                ["python3", str(EXTRACTOR), "verify", "--snapshot", str(snapshot)],
+                check=True,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

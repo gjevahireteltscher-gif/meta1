@@ -73,27 +73,54 @@ language.
 
 ## Full dump runtime index
 
-For a full local Wikidata dump, build the offline SQLite index once:
+For a full local Wikidata dump, build the offline SQLite index once. The
+current entity dump is over 100 GB compressed, so it is deliberately an
+explicit operation, outside CI and the Cloud Agent install:
 
 ```bash
+./scripts/download_wikidata_dump.sh \
+  https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.bz2 \
+  /data/wikidata/latest-all.json.bz2
+
 python3 scripts/build_wikidata_runtime_index.py build \
-  --dump /data/latest-all.json.bz2 \
+  --dump /data/wikidata/latest-all.json.bz2 \
   --database /data/wikidata-runtime.sqlite
 ```
 
-Then materialize a bounded, hash-bound snapshot for one source QID:
+The index retains English labels/aliases and the projected relation/type
+properties, along with the exact dump SHA-256. Resolve a textual mention using
+only the frozen index:
+
+```bash
+python3 scripts/build_wikidata_runtime_index.py lookup \
+  --database /data/wikidata-runtime.sqlite \
+  --alias "Waterloo"
+```
+
+Build a batch linker cache from unlabelled inference inputs; ambiguous aliases
+are recorded as ambiguity rather than guessed:
+
+```bash
+python3 scripts/build_wikidata_linker_cache.py \
+  --database /data/wikidata-runtime.sqlite \
+  --inputs evaluation/contextual-multidomain/audited-inputs.jsonl \
+  --output build/evaluation/wikidata-linker-cache.json
+```
+
+Then materialize a bounded, hash-bound snapshot for one or more resolved QIDs:
 
 ```bash
 python3 scripts/build_wikidata_runtime_index.py materialize \
   --database /data/wikidata-runtime.sqlite \
-  --source-qid Q639408 --depth 2 \
-  --rules evaluation/qid-fiber/rules.json \
-  --output data/wikidata-qid-snapshot
+  --source-qid Q639408 --source-qid Q649 --depth 2 \
+  --rules data/wikidata-runtime-rules.json \
+  --output build/wikidata-qid-snapshot
 ```
 
 The SQLite index is an untrusted offline retrieval structure. The materialized
 finite snapshot—not the mutable index—is the runtime KB passed to the checker
-and bound into certificates through `graph_sha256`.
+and bound into certificates through `graph_sha256`. Its manifest records both
+the bounded materialization parameters and the immutable source-index hash.
 
 ## Automatic language-database pipeline
 

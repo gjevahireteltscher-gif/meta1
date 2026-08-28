@@ -93,6 +93,7 @@ def main() -> None:
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--sentence", required=True)
     parser.add_argument("--source")
+    parser.add_argument("--linker-cache", type=Path)
     parser.add_argument("--contract-target")
     parser.add_argument("--rules", default="data/contextual-language-rules.json")
     parser.add_argument(
@@ -126,6 +127,8 @@ def main() -> None:
     ]
     if args.source:
         command.extend(["--source", args.source])
+    if args.linker_cache:
+        command.extend(["--linker-cache", str(args.linker_cache)])
     if args.contract_target:
         command.extend(["--target-surface", args.contract_target])
     if args.ablation == "no-framenet":

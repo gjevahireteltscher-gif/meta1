@@ -51,6 +51,11 @@ def main() -> None:
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--sentence", required=True)
     parser.add_argument("--source")
+    parser.add_argument(
+        "--linker-cache",
+        type=Path,
+        help="frozen exact-alias cache produced by build_wikidata_linker_cache.py",
+    )
     parser.add_argument("--target-surface")
     parser.add_argument("--name")
     parser.add_argument(
@@ -117,6 +122,20 @@ def main() -> None:
     role = action["role"]
     requirement = action["requirement"]
     candidates = aliases.get(source_text.casefold(), [])
+    linker_provenance = None
+    if not candidates and args.linker_cache:
+        cache = json.loads(args.linker_cache.read_text(encoding="utf-8"))
+        if cache.get("schema_version") != "wikidata-linker-cache-1":
+            raise SystemExit("unsupported-linker-cache-schema")
+        linked = [
+            row
+            for row in cache["resolved"]
+            if row["normalized"] == " ".join(source_text.casefold().split())
+        ]
+        candidates = sorted({row["id"] for row in linked})
+        linker_provenance = (
+            linked[0]["provenance"] if len(linked) == 1 else None
+        )
     action_frames = (
         []
         if args.disable_framenet
@@ -185,6 +204,11 @@ def main() -> None:
             "action_strength_policy": action["strength"],
             "action_evidence": action["evidence"],
             "rules": language_rules["schema_version"],
+            **(
+                {"entity_linker": linker_provenance}
+                if linker_provenance
+                else {}
+            ),
         },
         "constraints": [
             {

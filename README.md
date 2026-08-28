@@ -249,6 +249,26 @@ data/semantic-relations.tsv  directed bridge edges
 data/subsorts.tsv            ontology inheritance tree
 ```
 
+## Scaling entity linking and evidence
+
+The committed snapshots are deliberately small regression artifacts. For
+open-domain coverage, use the explicit offline Wikidata runtime pipeline:
+
+```bash
+./scripts/download_wikidata_dump.sh \
+  https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.bz2 \
+  /data/wikidata/latest-all.json.bz2
+python3 scripts/build_wikidata_runtime_index.py build \
+  --dump /data/wikidata/latest-all.json.bz2 \
+  --database /data/wikidata-runtime.sqlite
+```
+
+The database supports exact normalized label/alias lookup and materializes
+bounded, hash-bound QID neighborhoods. It does not perform live API lookup
+during inference, silently choose ambiguous names, or bypass the Agda checker.
+See `docs/contextual-tower.md` for batch linker-cache and materialization
+commands.
+
 For every parsed `subject–verb–object` tree, it:
 
 1. looks up the predicate's required subject and object types;
