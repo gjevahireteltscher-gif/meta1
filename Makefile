@@ -151,7 +151,7 @@ contextual-ablations: engine
 		--engine build/metonymy \
 		--snapshot data/wikidata-openalex-snapshot \
 		--output-dir build/evaluation/contextual-ablations
-	python3 -c 'import json; assert json.load(open("build/evaluation/contextual-ablations/summary.json")) == json.load(open("evaluation/contextual-multidomain/ablation-summary.json"))'
+	python3 -c 'import json; assert json.load(open("build/evaluation/contextual-ablations/comparison.json")) == json.load(open("evaluation/contextual-multidomain/ablation-summary.json"))'
 
 reproduce:
 	./scripts/reproduce.sh

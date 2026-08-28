@@ -1,0 +1,48 @@
+{
+  "ablations": {
+    "full": {
+      "abstention_rate": {"denominator": 9, "numerator": 0},
+      "coverage": {"denominator": 9, "numerator": 9},
+      "empty_fiber_rate": {"denominator": 9, "numerator": 3},
+      "fiber_exact_match_rate": {"denominator": 9, "numerator": 9},
+      "formal_stage_verification_rate": {"denominator": 24, "numerator": 24},
+      "gold_in_fiber_hit_rate": {"denominator": 6, "numerator": 6}
+    },
+    "no-existential": {
+      "abstention_rate": {"denominator": 9, "numerator": 0},
+      "coverage": {"denominator": 9, "numerator": 9},
+      "empty_fiber_rate": {"denominator": 9, "numerator": 3},
+      "fiber_exact_match_rate": {"denominator": 9, "numerator": 9},
+      "formal_stage_verification_rate": {"denominator": 24, "numerator": 24},
+      "gold_in_fiber_hit_rate": {"denominator": 6, "numerator": 6}
+    },
+    "no-formal-filtering": {
+      "abstention_rate": {"denominator": 9, "numerator": 0},
+      "coverage": {"denominator": 9, "numerator": 9},
+      "empty_fiber_rate": {"denominator": 9, "numerator": 3},
+      "fiber_exact_match_rate": {"denominator": 9, "numerator": 9},
+      "formal_stage_verification_rate": {"denominator": 24, "numerator": 0},
+      "gold_in_fiber_hit_rate": {"denominator": 6, "numerator": 6}
+    },
+    "no-framenet": {
+      "abstention_rate": {"denominator": 9, "numerator": 0},
+      "coverage": {"denominator": 9, "numerator": 9},
+      "empty_fiber_rate": {"denominator": 9, "numerator": 3},
+      "fiber_exact_match_rate": {"denominator": 9, "numerator": 9},
+      "formal_stage_verification_rate": {"denominator": 24, "numerator": 24},
+      "gold_in_fiber_hit_rate": {"denominator": 6, "numerator": 6}
+    },
+    "no-wordnet": {
+      "abstention_rate": {"denominator": 9, "numerator": 1},
+      "coverage": {"denominator": 9, "numerator": 8},
+      "empty_fiber_rate": {"denominator": 9, "numerator": 1},
+      "fiber_exact_match_rate": {"denominator": 9, "numerator": 7},
+      "formal_stage_verification_rate": {"denominator": 16, "numerator": 16},
+      "gold_in_fiber_hit_rate": {"denominator": 6, "numerator": 6}
+    }
+  },
+  "dataset_sha256": "bd6f32280a9d132824e8165c601fd34494dd14a964ae7f5e64fefa906f2b945e",
+  "gold_sha256": "8976fefce79a37a94a8381d005aff6d331507fb1191029e7993ccd371f07e437",
+  "schema_version": "contextual-ablations-1",
+  "snapshot_manifest_sha256": "342b45df22e03ddd4a0fffb434f25296000985c06c8ede816ff863dc73b3f4dd"
+}

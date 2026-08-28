@@ -82,6 +82,30 @@ def main() -> None:
         json.dumps(result, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    comparison = {
+        "schema_version": result["schema_version"],
+        "dataset_sha256": result["dataset_sha256"],
+        "gold_sha256": result["gold_sha256"],
+        "snapshot_manifest_sha256": result["snapshot_manifest_sha256"],
+        "ablations": {
+            name: {
+                key: report[key]
+                for key in (
+                    "coverage",
+                    "abstention_rate",
+                    "empty_fiber_rate",
+                    "gold_in_fiber_hit_rate",
+                    "fiber_exact_match_rate",
+                    "formal_stage_verification_rate",
+                )
+            }
+            for name, report in reports.items()
+        },
+    }
+    (output / "comparison.json").write_text(
+        json.dumps(comparison, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":
