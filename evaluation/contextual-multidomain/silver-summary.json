@@ -3,10 +3,10 @@
     "unique-contextual-fiber": 12
   },
   "eliminations_per_constraint": {
-    "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@political": 19,
-    "Requires (HasSort Agent)@agreement": 0,
+    "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@sign political agreement": 19,
     "Requires (HasSort Agent)@sign": 27,
-    "Requires (HasSort BusinessOrganization)@commercial": 8,
+    "Requires (HasSort Agent)@sign agreement": 0,
+    "Requires (HasSort BusinessOrganization)@sign commercial agreement": 8,
     "Requires (HasSort Readable)@read": 0,
     "graph-related": 0
   },

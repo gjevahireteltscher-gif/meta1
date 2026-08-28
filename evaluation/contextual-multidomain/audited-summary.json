@@ -4,12 +4,13 @@
   },
   "eliminations_per_constraint": {
     "Requires (AnyOf [HasSort Animate,HasSort Organization])@announce": 0,
-    "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@political": 1,
-    "Requires (HasSort Agent)@agreement": 0,
+    "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@sign political agreement": 1,
     "Requires (HasSort Agent)@sign": 0,
-    "Requires (HasSort BusinessOrganization)@commercial": 0,
+    "Requires (HasSort Agent)@sign agreement": 0,
+    "Requires (HasSort BusinessOrganization)@sign commercial agreement": 0,
     "Requires (HasSort Readable)@read": 0,
-    "RequiresRelation Conducts Q413@physics": 0,
+    "RequiresRelation Conducts Q413@announce programme in physics": 0,
+    "RequiresSome Conducts (HasSort ScientificDiscipline)@announce programme": 0,
     "graph-related": 0
   },
   "empty_fiber_rate": {
