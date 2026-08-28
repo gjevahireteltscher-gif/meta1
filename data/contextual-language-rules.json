@@ -1,5 +1,5 @@
 {
-  "schema_version": "contextual-language-rules-2",
+  "schema_version": "contextual-language-rules-3",
   "action_role_source": {
     "hard_requirements": "data/predicates.tsv",
     "selectional_preferences": "data/verbnet-action-roles.tsv",
@@ -50,6 +50,15 @@
       "relation": "Conducts",
       "target_slot": "modifier",
       "provenance": "context-template:programme-in-topic:v1"
+    }
+  ],
+  "frame_argument_capabilities": [
+    {
+      "frames": ["Statement"],
+      "argument_sorts": ["Programme", "ResearchProgramme"],
+      "relation": "Conducts",
+      "related_requirement": "HasSort ScientificDiscipline",
+      "provenance": "capability-projection:Statement×Programme→ConductsDiscipline:v1"
     }
   ],
   "composition_matrix": [

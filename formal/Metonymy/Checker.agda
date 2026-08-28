@@ -573,6 +573,7 @@ record RawLexicalAnchor : Set where
 data RawContextPayload : Set where
   rawRequires : Requirement → RawContextPayload
   rawRequiresRelation : String → String → RawContextPayload
+  rawRequiresSome : String → Requirement → RawContextPayload
 
 record RawContextConstraint : Set where
   constructor rawContextConstraint
@@ -616,6 +617,14 @@ rawConstraintHolds kb candidate constraint with rawConstraintPayload constraint
   satisfiesRequirement kb candidate requirement
 ... | rawRequiresRelation relation target =
   relationExists kb (edge relation candidate target)
+... | rawRequiresSome relation requirement =
+  any matches (relationFacts kb)
+  where
+  matches : RelationFact → Bool
+  matches fact =
+    stringEqual relation (factRelation fact)
+      and stringEqual candidate (factSource fact)
+      and satisfiesRequirement kb (factTarget fact) requirement
 
 rawConstraintsHold :
   KnowledgeBase →

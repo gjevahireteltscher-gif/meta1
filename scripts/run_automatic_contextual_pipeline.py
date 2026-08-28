@@ -34,6 +34,17 @@ def encode_constraint(constraint: dict) -> str:
             + "|"
             + constraint["provenance"]
         )
+    if "requires_some" in payload:
+        related = payload["requires_some"]
+        return (
+            prefix
+            + "|some|"
+            + related["relation"]
+            + "|"
+            + related["requirement"]
+            + "|"
+            + constraint["provenance"]
+        )
     relation = payload["requires_relation"]
     return (
         prefix

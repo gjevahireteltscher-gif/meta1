@@ -43,6 +43,7 @@ contextualFiberChecked snapshot relations maxDepth context = do
 obstructionTarget :: SnapshotObstruction -> EntityId
 obstructionTarget (MissingRequirement _ candidate) = candidate
 obstructionTarget (MissingRelation _ candidate _ _) = candidate
+obstructionTarget (MissingRelated _ candidate _ _) = candidate
 
 data ContextualContraction = ContextualContraction
   { contractionStages :: [FiberStage]

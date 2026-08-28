@@ -114,6 +114,23 @@ def load_action_roles(
     return roles
 
 
+def load_action_frames(actions_path: Path) -> dict[str, list[dict[str, str]]]:
+    frames: dict[str, list[dict[str, str]]] = {}
+    for row in read_tsv(actions_path):
+        lemma = row["lemma"].casefold().replace("_", " ")
+        for frame in json.loads(row["framenet_frames_json"]):
+            if not frame or frame == "None":
+                continue
+            entry = {
+                "frame": frame,
+                "action_id": row["action_id"],
+                "provenance": row["provenance"],
+            }
+            if entry not in frames.setdefault(lemma, []):
+                frames[lemma].append(entry)
+    return frames
+
+
 def _surface_phrases(sentence: str) -> list[tuple[str, int, int]]:
     tokens = list(re.finditer(r"[A-Za-z][A-Za-z'-]*", sentence))
     phrases = []
@@ -296,6 +313,31 @@ def _origin(sentence: str, token: str, constructor: str) -> dict:
     }
 
 
+def _cumulative_origin(
+    proposal: dict,
+    token: str,
+    constructor: str,
+    semantic_lemma: str,
+) -> dict:
+    sentence = proposal["sentence"]
+    action_origin = proposal["constraints"][0]["origin"]
+    match = re.search(
+        rf"\b{re.escape(token)}\b",
+        sentence[action_origin["end"] :],
+        re.IGNORECASE,
+    )
+    if not match:
+        raise ValueError(f"GF lexical token is absent from source: {token}")
+    end = action_origin["end"] + match.end()
+    return {
+        "constructor": constructor,
+        "lemma": semantic_lemma,
+        "surface": sentence[action_origin["start"] : end],
+        "start": action_origin["start"],
+        "end": end,
+    }
+
+
 def _noun_lemma(node: GFNode | str) -> str | None:
     if not isinstance(node, GFNode):
         return None
@@ -331,6 +373,84 @@ def compile_gf_constraints(
     root = parse_gf_tree(tree)
     constraints = []
 
+    def first_node(node: GFNode | str, constructor: str) -> GFNode | None:
+        if not isinstance(node, GFNode):
+            return None
+        if node.constructor == constructor:
+            return node
+        for argument in node.arguments:
+            found = first_node(argument, constructor)
+            if found:
+                return found
+        return None
+
+    def lexical_head(node: GFNode | str) -> GFNode | str:
+        if isinstance(node, GFNode) and node.constructor == "ModifyNP":
+            return lexical_head(node.arguments[0])
+        return node
+
+    complement = first_node(root, "Compl")
+    if complement and len(complement.arguments) == 2:
+        object_node = complement.arguments[1]
+        head = lexical_head(object_node)
+        head_lemma = _noun_lemma(head)
+        head_rule = (
+            wordnet_rules.get("lexical_sorts", {}).get(head_lemma.casefold())
+            if head_lemma
+            else None
+        )
+        if head_lemma and head_rule:
+            head_sorts = _sorts(head_rule["requirement"])
+            frame_names = sorted(
+                {frame["frame"] for frame in proposal.get("frames", [])}
+            )
+            capability = next(
+                (
+                    rule
+                    for rule in language_rules.get(
+                        "frame_argument_capabilities", []
+                    )
+                    if head_sorts.intersection(rule["argument_sorts"])
+                    and (
+                        not rule.get("frames")
+                        or set(frame_names).intersection(rule["frames"])
+                    )
+                ),
+                None,
+            )
+            semantic_lemma = " ".join([proposal["action"], head_lemma])
+            provenance_parts = [
+                head_rule["provenance"],
+                proposal["provenance"]["action"],
+            ]
+            if frame_names:
+                provenance_parts.append("FrameNet:" + ",".join(frame_names))
+            if capability:
+                payload = {
+                    "requires_some": {
+                        "relation": capability["relation"],
+                        "requirement": capability["related_requirement"],
+                    }
+                }
+                provenance_parts.append(capability["provenance"])
+            else:
+                payload = {
+                    "requires": proposal["constraints"][0]["payload"]["requires"]
+                }
+                provenance_parts.append("frame-argument-compatibility:v1")
+            constraints.append(
+                {
+                    "origin": _cumulative_origin(
+                        proposal,
+                        head_lemma,
+                        "FrameArgument",
+                        semantic_lemma,
+                    ),
+                    "payload": payload,
+                    "provenance": "+".join(provenance_parts),
+                }
+            )
+
     def walk(node: GFNode | str) -> None:
         if not isinstance(node, GFNode):
             return
@@ -353,21 +473,6 @@ def compile_gf_constraints(
             action_rules = language_rules.get("action_object_requirements", {}).get(
                 proposal["action"], {}
             )
-            base_action_rule = action_rules.get(noun_sort)
-            if base_action_rule:
-                constraints.append(
-                    {
-                        "origin": _origin(proposal["sentence"], noun, "OpenCN"),
-                        "payload": {
-                            "requires": base_action_rule["candidate_requirement"]
-                        },
-                        "provenance": (
-                            noun_rule["provenance"]
-                            + "+"
-                            + base_action_rule["provenance"]
-                        ),
-                    }
-                )
             composition = next(
                 (
                     rule
@@ -390,8 +495,13 @@ def compile_gf_constraints(
                 )
             constraints.append(
                 {
-                    "origin": _origin(
-                        proposal["sentence"], adjective, "OpenAdj"
+                    "origin": _cumulative_origin(
+                        proposal,
+                        noun,
+                        "FrameComposition",
+                        " ".join(
+                            [proposal["action"], adjective, noun]
+                        ),
                     ),
                     "payload": {
                         "requires": composed_rule["candidate_requirement"]
@@ -408,6 +518,7 @@ def compile_gf_constraints(
 
         if node.constructor == "ModifyNP" and len(node.arguments) == 2:
             head, modifier = node.arguments
+            walk(head)
             if (
                 isinstance(modifier, GFNode)
                 and modifier.constructor == "InPP"
@@ -439,8 +550,18 @@ def compile_gf_constraints(
                             )
                         constraints.append(
                             {
-                                "origin": _origin(
-                                    proposal["sentence"], target_lemma, "OpenPN"
+                                "origin": _cumulative_origin(
+                                    proposal,
+                                    target_lemma,
+                                    "FrameModifier",
+                                    " ".join(
+                                        [
+                                            proposal["action"],
+                                            head_lemma,
+                                            "in",
+                                            target_lemma,
+                                        ]
+                                    ),
                                 ),
                                 "payload": {
                                     "requires_relation": {
@@ -455,6 +576,7 @@ def compile_gf_constraints(
                                 ),
                             }
                         )
+            return
         for argument in node.arguments:
             walk(argument)
 

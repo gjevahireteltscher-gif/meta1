@@ -45,6 +45,7 @@ SYMBOLS = {
     "context_payload_t": r"T_RawContextPayload_\d+",
     "context_requires_c": r"C_rawRequires_\d+",
     "context_relation_c": r"C_rawRequiresRelation_\d+",
+    "context_some_c": r"C_rawRequiresSome_\d+",
     "context_constraint_t": r"T_RawContextConstraint_\d+",
     "context_constraint_c": r"C_rawContextConstraint_\d+",
     "context_t": r"T_RawContext_\d+",
@@ -87,7 +88,7 @@ module Metonymy.CheckerAPI
   , RawCertificate, rawCertificate
   , RuntimeClause, runtimeClause
   , RawLexicalAnchor, rawLexicalAnchor
-  , RawContextPayload, rawRequires, rawRequiresRelation
+  , RawContextPayload, rawRequires, rawRequiresRelation, rawRequiresSome
   , RawContextConstraint, rawContextConstraint
   , RawContext, rawContext
   , RawDiscourseEvidence, targetSalient
@@ -186,6 +187,8 @@ rawRequires :: Requirement -> RawContextPayload
 rawRequires = {a}.{symbol["context_requires_c"]}
 rawRequiresRelation :: Text -> Text -> RawContextPayload
 rawRequiresRelation = {a}.{symbol["context_relation_c"]}
+rawRequiresSome :: Text -> Requirement -> RawContextPayload
+rawRequiresSome = {a}.{symbol["context_some_c"]}
 
 type RawContextConstraint = {a}.{symbol["context_constraint_t"]}
 rawContextConstraint :: RawLexicalAnchor -> RawContextPayload -> Text -> RawContextConstraint

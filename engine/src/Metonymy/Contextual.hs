@@ -31,6 +31,7 @@ data LexicalAnchor = LexicalAnchor
 data ConstraintPayload
   = Requires Requirement
   | RequiresRelation Relation EntityId
+  | RequiresSome Relation Requirement
   deriving stock (Eq, Show)
 
 data ContextConstraint = ContextConstraint
@@ -65,11 +66,13 @@ data Snapshot = Snapshot
 data SnapshotObstruction
   = MissingRequirement ContextConstraint EntityId
   | MissingRelation ContextConstraint EntityId Relation EntityId
+  | MissingRelated ContextConstraint EntityId Relation Requirement
   deriving stock (Eq, Show)
 
 data ConstraintProof
   = RequirementConstraintProof ContextConstraint [Proof]
   | RelationConstraintProof ContextConstraint Proof
+  | RelatedConstraintProof ContextConstraint Proof [Proof]
   deriving stock (Eq, Show)
 
 data ContextualCandidate = ContextualCandidate
@@ -168,6 +171,23 @@ applyConstraint kb constraint =
               (candidate {contextualProofs = contextualProofs candidate <> [RelationConstraintProof constraint proof]} : survivors, obstructions)
             Nothing ->
               (survivors, MissingRelation constraint target relation expectedTarget : obstructions)
+        RequiresSome relation requirement ->
+          case relatedProof relation target requirement of
+            Just (relationEvidence, requirementEvidence) ->
+              ( candidate
+                  { contextualProofs =
+                      contextualProofs candidate
+                        <> [ RelatedConstraintProof
+                               constraint
+                               relationEvidence
+                               requirementEvidence
+                           ]
+                  }
+                  : survivors
+              , obstructions
+              )
+            Nothing ->
+              (survivors, MissingRelated constraint target relation requirement : obstructions)
       where
         target = fineTarget (contextualFineMeaning candidate)
 
@@ -182,6 +202,24 @@ applyConstraint kb constraint =
         assertion : _ ->
           Just (RelationProof relation source target (relationProvenance assertion))
         [] -> Nothing
+
+    relatedProof relation source requirement =
+      firstMatchingJust
+        [ do
+            requirementEvidence <-
+              proveRequirement kb (relationTarget assertion) requirement
+            pure
+              ( RelationProof
+                  relation
+                  source
+                  (relationTarget assertion)
+                  (relationProvenance assertion)
+              , requirementEvidence
+              )
+        | assertion <- relationAssertions kb
+        , assertedRelation assertion == relation
+        , relationSource assertion == source
+        ]
 
 stageTargets :: FiberStage -> [EntityId]
 stageTargets = map (fineTarget . contextualFineMeaning) . stageCandidates
@@ -200,3 +238,8 @@ firstMatching _ [] = Nothing
 firstMatching predicate (value : values)
   | predicate value = Just value
   | otherwise = firstMatching predicate values
+
+firstMatchingJust :: [Maybe value] -> Maybe value
+firstMatchingJust [] = Nothing
+firstMatchingJust (Just value : _) = Just value
+firstMatchingJust (Nothing : values) = firstMatchingJust values

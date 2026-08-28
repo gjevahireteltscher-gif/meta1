@@ -125,6 +125,32 @@ The same tree walker recognizes the real GF shape
 `ModifyNP(head, InPP(topic))`; the generic Programme/ResearchProgramme
 template derives `Conducts(_, topic-QID)` without matching the words
 `programme` or `physics` in code.
+
+### Cumulative constituent layers
+
+Supported positive constituents are elaborated in their semantic composition
+order rather than as a flat token list:
+
+```text
+verb
+verb + object head
+verb + composed adjective/object
+verb + object modifier
+```
+
+The lexical anchor of each constraint spans the cumulative surface phrase, so
+the CLI exposes labels such as `declare`, `declare programme`, and
+`declare programme in physics`. VerbNet supplies action roles, its pinned
+FrameNet links supply frame identities, and WordNet supplies argument sorts.
+
+`RequiresSome relation requirement` is the executable existential fragment:
+it holds for candidate `x` exactly when the frozen snapshot contains some
+`relation(x, y)` and `y` satisfies `requirement`. Both Haskell and the
+independently compiled Agda checker evaluate this witness at every prefix.
+Frame/argument combinations without an audited entity-level capability
+projection still receive a compatibility layer, but that layer cannot claim
+or invent a capability fact. Capability projections are global,
+sort-and-frame-level rules, not sentence scenarios.
 After every cumulative constraint prefix, Haskell calls compiled Agda
 `contextLayerCheck` for every survivor and every obstruction before advancing
 to the next stage.

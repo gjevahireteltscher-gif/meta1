@@ -21,6 +21,7 @@ trans refl proof = proof
 data ConstraintPayload : Set where
   requires : Requirement → ConstraintPayload
   requiresRelation : String → String → ConstraintPayload
+  requiresSome : String → Requirement → ConstraintPayload
 
 record LexicalAnchor : Set where
   constructor lexicalAnchor
@@ -63,6 +64,15 @@ constraintHolds kb candidate constraint with constraintPayload constraint
 ... | requiresRelation relation target =
   not (stringEqual (constraintProvenance constraint) "")
     and relationExists kb (edge relation candidate target)
+... | requiresSome relation requirement =
+  not (stringEqual (constraintProvenance constraint) "")
+    and any matches (relationFacts kb)
+  where
+  matches : RelationFact → Bool
+  matches fact =
+    stringEqual relation (factRelation fact)
+      and stringEqual candidate (factSource fact)
+      and satisfiesRequirement kb (factTarget fact) requirement
 
 constraintsHold :
   KnowledgeBase →

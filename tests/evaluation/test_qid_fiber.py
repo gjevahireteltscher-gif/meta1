@@ -123,6 +123,16 @@ class QidFiberTests(unittest.TestCase):
         )
         self.assertIn("action=declare role=SubjectHole", completed.stdout)
         self.assertIn("survivors=[Q1049470,Q2004561]", completed.stdout)
+        self.assertIn(
+            "constraint=RequiresSome Conducts (HasSort ScientificDiscipline)"
+            "@declare programme",
+            completed.stdout,
+        )
+        self.assertIn(
+            "constraint=RequiresRelation Conducts Q413"
+            "@declare programme in physics",
+            completed.stdout,
+        )
         self.assertEqual(
             completed.stdout.count("stage="),
             completed.stdout.count("agda-layer-check=true"),
@@ -182,6 +192,25 @@ class QidFiberTests(unittest.TestCase):
             {
                 "action": "announce",
                 "sentence": "Waterloo announced a program in physics",
+                "frames": [{"frame": "Statement"}],
+                "provenance": {"action": "test:VerbNet:announce"},
+                "constraints": [
+                    {
+                        "origin": {
+                            "constructor": "Verb",
+                            "lemma": "announce",
+                            "surface": "announced",
+                            "start": 9,
+                            "end": 18,
+                        },
+                        "payload": {
+                            "requires": (
+                                "AnyOf [HasSort Animate,HasSort Organization]"
+                            )
+                        },
+                        "provenance": "test:VerbNet:announce",
+                    }
+                ],
             },
             (
                 'Pred (OpenPN "Waterloo") '
@@ -193,14 +222,29 @@ class QidFiberTests(unittest.TestCase):
             wordnet_rules,
             {"physics": ["Q413"]},
         )
-        self.assertEqual(len(constraints), 1)
+        self.assertEqual(len(constraints), 2)
         self.assertEqual(
-            constraints[0]["payload"]["requires_relation"],
+            constraints[0]["payload"]["requires_some"],
+            {
+                "relation": "Conducts",
+                "requirement": "HasSort ScientificDiscipline",
+            },
+        )
+        self.assertEqual(
+            constraints[0]["origin"]["lemma"],
+            "announce program",
+        )
+        self.assertEqual(
+            constraints[1]["payload"]["requires_relation"],
             {"relation": "Conducts", "target": "Q413"},
         )
         self.assertIn(
             "PrincetonWordNet:data.noun:",
-            constraints[0]["provenance"],
+            constraints[1]["provenance"],
+        )
+        self.assertEqual(
+            constraints[1]["origin"]["lemma"],
+            "announce program in physics",
         )
 
     def test_unique_and_ambiguous_contextual_contraction(self):

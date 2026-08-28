@@ -107,6 +107,10 @@ toAgdaContextConstraint constraint =
       Requires requirement -> Agda.rawRequires (toAgdaRequirement requirement)
       RequiresRelation relation target ->
         Agda.rawRequiresRelation (text (show relation)) (text (show target))
+      RequiresSome relation requirement ->
+        Agda.rawRequiresSome
+          (text (show relation))
+          (toAgdaRequirement requirement)
     )
     (text (constraintProvenance constraint))
 

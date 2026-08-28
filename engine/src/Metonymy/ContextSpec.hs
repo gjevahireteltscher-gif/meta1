@@ -76,6 +76,14 @@ loadContextScenarios snapshot path = do
                 )
             <*> (RequiresRelation <$> parseAt lineNumber relation <*> pure (EntityId target))
             <*> pure provenance
+        [constructor, lemma, surface, start, end, "some", relation, requirement, provenance] ->
+          ContextConstraint
+            <$> ( LexicalAnchor constructor lemma surface
+                    <$> parseAt lineNumber start
+                    <*> parseAt lineNumber end
+                )
+            <*> (RequiresSome <$> parseAt lineNumber relation <*> parseAt lineNumber requirement)
+            <*> pure provenance
         _ -> failAt lineNumber ("malformed contextual constraint: " <> encoded)
 
     parseAt lineNumber value =

@@ -8,7 +8,11 @@ import json
 import re
 from pathlib import Path
 
-from contextual_rule_compiler import load_action_roles, resolve_action
+from contextual_rule_compiler import (
+    load_action_frames,
+    load_action_roles,
+    resolve_action,
+)
 
 
 def rows(path: Path):
@@ -43,6 +47,11 @@ def main() -> None:
         type=Path,
         default=Path("data/verbnet-action-roles.tsv"),
     )
+    parser.add_argument(
+        "--verbnet-actions",
+        type=Path,
+        default=Path("data/verbnet-actions.tsv"),
+    )
     args = parser.parse_args()
     aliases = {}
     for row in rows(args.snapshot / "aliases.jsonl"):
@@ -75,6 +84,7 @@ def main() -> None:
     role = action["role"]
     requirement = action["requirement"]
     candidates = aliases.get(source_text.casefold(), [])
+    action_frames = load_action_frames(args.verbnet_actions).get(lemma, [])
     snapshot_relations = list(
         dict.fromkeys(rule["internal"] for rule in snapshot_rules["relations"])
     )
@@ -105,6 +115,7 @@ def main() -> None:
         "source_surface": source_text,
         "source_qid_candidates": sorted(candidates),
         "action": lemma,
+        "frames": action_frames,
         "role": role,
         "bridge_relations": bridge_relations,
         "max_depth": language_rules.get("max_bridge_depth", 1),
