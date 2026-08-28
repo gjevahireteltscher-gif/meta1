@@ -257,10 +257,10 @@ open-domain coverage, use the explicit offline Wikidata runtime pipeline:
 ```bash
 ./scripts/download_wikidata_dump.sh \
   https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.bz2 \
-  /data/wikidata/latest-all.json.bz2
+  ~/.cache/metonymy/wikidata/latest-all.json.bz2
 python3 scripts/build_wikidata_runtime_index.py build \
-  --dump /data/wikidata/latest-all.json.bz2 \
-  --database /data/wikidata-runtime.sqlite
+  --dump ~/.cache/metonymy/wikidata/latest-all.json.bz2 \
+  --database ~/.cache/metonymy/wikidata/runtime.sqlite
 ```
 
 The database supports exact normalized label/alias lookup and materializes

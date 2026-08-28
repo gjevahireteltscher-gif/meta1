@@ -80,11 +80,11 @@ explicit operation, outside CI and the Cloud Agent install:
 ```bash
 ./scripts/download_wikidata_dump.sh \
   https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.bz2 \
-  /data/wikidata/latest-all.json.bz2
+  ~/.cache/metonymy/wikidata/latest-all.json.bz2
 
 python3 scripts/build_wikidata_runtime_index.py build \
-  --dump /data/wikidata/latest-all.json.bz2 \
-  --database /data/wikidata-runtime.sqlite
+  --dump ~/.cache/metonymy/wikidata/latest-all.json.bz2 \
+  --database ~/.cache/metonymy/wikidata/runtime.sqlite
 ```
 
 The index retains English labels/aliases and the projected relation/type
@@ -93,7 +93,7 @@ only the frozen index:
 
 ```bash
 python3 scripts/build_wikidata_runtime_index.py lookup \
-  --database /data/wikidata-runtime.sqlite \
+  --database ~/.cache/metonymy/wikidata/runtime.sqlite \
   --alias "Waterloo"
 ```
 
@@ -102,7 +102,7 @@ are recorded as ambiguity rather than guessed:
 
 ```bash
 python3 scripts/build_wikidata_linker_cache.py \
-  --database /data/wikidata-runtime.sqlite \
+  --database ~/.cache/metonymy/wikidata/runtime.sqlite \
   --inputs evaluation/contextual-multidomain/audited-inputs.jsonl \
   --output build/evaluation/wikidata-linker-cache.json
 ```
@@ -111,7 +111,7 @@ Then materialize a bounded, hash-bound snapshot for one or more resolved QIDs:
 
 ```bash
 python3 scripts/build_wikidata_runtime_index.py materialize \
-  --database /data/wikidata-runtime.sqlite \
+  --database ~/.cache/metonymy/wikidata/runtime.sqlite \
   --source-qid Q639408 --source-qid Q649 --depth 2 \
   --rules data/wikidata-runtime-rules.json \
   --output build/wikidata-qid-snapshot
