@@ -138,6 +138,38 @@ class QidFiberTests(unittest.TestCase):
             completed.stdout.count("agda-layer-check=true"),
         )
 
+    def test_existential_capability_layer_emits_checked_obstructions(self):
+        completed = subprocess.run(
+            [
+                "python3",
+                str(ROOT / "scripts/run_automatic_contextual_pipeline.py"),
+                "--engine",
+                str(ROOT / "build/metonymy"),
+                "--snapshot",
+                str(ROOT / "data/wikidata-openalex-snapshot"),
+                "--sentence",
+                "Stavropol declared a program",
+                "--source",
+                "Stavropol",
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+            cwd=ROOT,
+        )
+        self.assertIn(
+            "constraint=RequiresSome Conducts (HasSort ScientificDiscipline)"
+            "@declare program",
+            completed.stdout,
+        )
+        self.assertIn("obstruction=MissingRelated", completed.stdout)
+        self.assertIn("survivors=[]", completed.stdout)
+        self.assertTrue(completed.stdout.rstrip().endswith("ScientificDiscipline)"))
+        self.assertEqual(
+            completed.stdout.count("stage="),
+            completed.stdout.count("agda-layer-check=true"),
+        )
+
     def test_proposer_does_not_require_manual_action_registry(self):
         rules = json.loads(
             (ROOT / "data/contextual-language-rules.json").read_text(
