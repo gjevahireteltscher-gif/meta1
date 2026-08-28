@@ -8,6 +8,9 @@ import json
 import re
 from pathlib import Path
 
+from contextual_rule_compiler import load_action_roles, resolve_action
+
+
 def rows(path: Path):
     with path.open(encoding="utf-8") as source:
         return [json.loads(line) for line in source if line.strip()]
@@ -18,6 +21,7 @@ def main() -> None:
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--sentence", required=True)
     parser.add_argument("--source")
+    parser.add_argument("--target-surface")
     parser.add_argument("--name")
     parser.add_argument(
         "--rules",
@@ -29,55 +33,70 @@ def main() -> None:
         type=Path,
         default=Path("data/wordnet-context-rules.json"),
     )
+    parser.add_argument(
+        "--predicates",
+        type=Path,
+        default=Path("data/predicates.tsv"),
+    )
+    parser.add_argument(
+        "--verbnet-action-roles",
+        type=Path,
+        default=Path("data/verbnet-action-roles.tsv"),
+    )
     args = parser.parse_args()
     aliases = {}
     for row in rows(args.snapshot / "aliases.jsonl"):
         aliases.setdefault(row["alias"].casefold(), []).append(row["id"])
     manifest = json.loads((args.snapshot / "manifest.json").read_text())
+    snapshot_rules = json.loads(
+        (args.snapshot / "rules.json").read_text(encoding="utf-8")
+    )
     language_rules = json.loads(args.rules.read_text(encoding="utf-8"))
-    action_forms = {
-        form.casefold(): (lemma, definition)
-        for lemma, definition in language_rules["actions"].items()
-        for form in definition["forms"]
-    }
     tokens = list(re.finditer(r"[A-Za-z][A-Za-z'-]*", args.sentence))
-    action = next(
-        (
-            (match, action_forms[match.group().casefold()])
-            for match in tokens
-            if match.group().casefold() in action_forms
-        ),
-        None,
+    source_text = args.source or args.target_surface
+    if not source_text:
+        source_text = tokens[0].group() if tokens else ""
+    action_roles = load_action_roles(
+        args.predicates, args.verbnet_action_roles
     )
-    if action is None:
-        raise SystemExit("unsupported-action")
-    action_match, (lemma, action_definition) = action
-    role = action_definition["role"]
-    requirement = action_definition["requirement"]
-    inferred_source = (
-        args.sentence[: action_match.start()].strip()
-        if role == "SubjectHole"
-        else args.sentence[action_match.end() :].strip().strip(".!?")
-    )
-    source_text = args.source or inferred_source
+    try:
+        action = resolve_action(
+            args.sentence,
+            [value for value in (args.target_surface, source_text) if value],
+            action_roles,
+            language_rules.get(
+                "morphology_overrides",
+                language_rules.get("actions", {}),
+            ),
+        )
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    lemma = action["lemma"]
+    role = action["role"]
+    requirement = action["requirement"]
     candidates = aliases.get(source_text.casefold(), [])
+    bridge_relations = list(
+        dict.fromkeys(rule["internal"] for rule in snapshot_rules["relations"])
+    )
     proposal = {
         "schema_version": "contextual-scenario-proposal-1",
         "graph_sha256": manifest["graph_sha256"],
         "sentence": args.sentence,
         "gf_sentence": (
-            args.sentence[: action_match.start()]
-            + action_definition.get("gf_form", action_match.group())
-            + args.sentence[action_match.end() :]
+            args.sentence[: action["start"]]
+            + action["gf_form"]
+            + args.sentence[action["end"] :]
         ),
         "source_surface": source_text,
         "source_qid_candidates": sorted(candidates),
         "action": lemma,
         "role": role,
-        "bridge_relations": action_definition["bridge_relations"],
-        "max_depth": action_definition.get("max_depth", 1),
+        "bridge_relations": bridge_relations,
+        "max_depth": language_rules.get("max_bridge_depth", 1),
         "provenance": {
-            "action": action_definition["provenance"],
+            "action": action["provenance"],
+            "action_strength_policy": action["strength"],
+            "action_evidence": action["evidence"],
             "rules": language_rules["schema_version"],
         },
         "constraints": [
@@ -85,12 +104,12 @@ def main() -> None:
                 "origin": {
                     "constructor": "Verb",
                     "lemma": lemma,
-                    "surface": action_match.group(),
-                    "start": action_match.start(),
-                    "end": action_match.end(),
+                    "surface": action["surface"],
+                    "start": action["start"],
+                    "end": action["end"],
                 },
                 "payload": {"requires": requirement},
-                "provenance": action_definition["provenance"],
+                "provenance": action["provenance"],
             }
         ],
     }
@@ -112,29 +131,6 @@ def main() -> None:
                 )
         proposal["lexical_evidence"] = lexical_evidence
         proposal["provenance"]["wordnet"] = wordnet_rules["schema_version"]
-    sentence_folded = args.sentence.casefold()
-    if "programme" in sentence_folded and "physics" in sentence_folded:
-        physics_candidates = aliases.get("physics", [])
-        if len(physics_candidates) == 1:
-            physics_start = sentence_folded.index("physics")
-            proposal["constraints"].append(
-                {
-                    "origin": {
-                        "constructor": "Noun",
-                        "lemma": "physics",
-                        "surface": args.sentence[physics_start : physics_start + 7],
-                        "start": physics_start,
-                        "end": physics_start + 7,
-                    },
-                    "payload": {
-                        "requires_relation": {
-                            "relation": "Conducts",
-                            "target": physics_candidates[0],
-                        }
-                    },
-                    "provenance": "context-template:programme-in-topic:v1",
-                }
-            )
     proposal["status"] = "ready" if len(candidates) == 1 else "source-qid-unresolved"
     if proposal["status"] == "ready":
         proposal["scenario"] = args.name or f"{candidates[0].lower()}-{lemma}"

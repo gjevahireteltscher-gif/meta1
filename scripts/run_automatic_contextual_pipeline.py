@@ -7,106 +7,11 @@ import argparse
 import json
 import subprocess
 import tempfile
-import re
 from pathlib import Path
 
+from contextual_rule_compiler import compile_gf_constraints
+
 HEADER = "scenario\tsource_qid\taction\trole\tmax_depth\tbridge_relations\tconstraints\n"
-
-
-def token_origin(sentence: str, token: str, constructor: str) -> dict:
-    match = re.search(rf"\b{re.escape(token)}\b", sentence, re.IGNORECASE)
-    if not match:
-        raise ValueError(f"GF lexical token is absent from source: {token}")
-    return {
-        "constructor": constructor,
-        "lemma": token.casefold(),
-        "surface": match.group(),
-        "start": match.start(),
-        "end": match.end(),
-    }
-
-
-def compile_gf_constraints(
-    proposal: dict,
-    tree: str,
-    language_rules: dict,
-    wordnet_rules: dict,
-) -> list[dict]:
-    constraints = []
-    adjective_nodes = re.findall(
-        r'OpenAdj(?:Def|Indef)CN "([^"]+)" "([^"]+)"', tree
-    )
-    for adjective, noun in adjective_nodes:
-        noun_rule = wordnet_rules.get("lexical_sorts", {}).get(noun.casefold())
-        adjective_rule = wordnet_rules.get("adjective_sorts", {}).get(
-            adjective.casefold()
-        )
-        if not noun_rule or not adjective_rule:
-            raise ValueError(
-                f"unsupported GF adjective-noun semantics: {adjective} {noun}"
-            )
-        noun_requirement = noun_rule["requirement"]
-        noun_sort = (
-            noun_requirement.removeprefix("HasSort ")
-            if noun_requirement.startswith("HasSort ")
-            else None
-        )
-        if noun_sort is None:
-            raise ValueError(f"ambiguous noun sort for GF composition: {noun}")
-        action_rules = language_rules.get("action_object_requirements", {}).get(
-            proposal["action"], {}
-        )
-        base_action_rule = action_rules.get(noun_sort)
-        if base_action_rule:
-            constraints.append(
-                {
-                    "origin": token_origin(proposal["sentence"], noun, "OpenCN"),
-                    "payload": {
-                        "requires": base_action_rule["candidate_requirement"]
-                    },
-                    "provenance": (
-                        noun_rule["provenance"]
-                        + "+"
-                        + base_action_rule["provenance"]
-                    ),
-                }
-            )
-        result = next(
-            (
-                rule
-                for rule in language_rules.get("composition_matrix", [])
-                if rule["modifier_sort"] == adjective_rule["sort"]
-                and rule["noun_sort"] == noun_sort
-            ),
-            None,
-        )
-        if result is None:
-            raise ValueError(
-                f"no semantic composition for {adjective_rule['sort']}×{noun_sort}"
-            )
-        composed_action_rule = action_rules.get(result["result_sort"])
-        if composed_action_rule is None:
-            raise ValueError(
-                f"action {proposal['action']} has no role rule for {result['result_sort']}"
-            )
-        constraints.append(
-            {
-                "origin": token_origin(
-                    proposal["sentence"], adjective, "OpenAdj"
-                ),
-                "payload": {
-                    "requires": composed_action_rule["candidate_requirement"]
-                },
-                "provenance": (
-                    adjective_rule["provenance"]
-                    + "+"
-                    + result["provenance"]
-                    + "+"
-                    + composed_action_rule["provenance"]
-                ),
-            }
-        )
-    return constraints
 
 
 def encode_constraint(constraint: dict) -> str:
@@ -162,6 +67,8 @@ def main() -> None:
     ]
     if args.source:
         command.extend(["--source", args.source])
+    if args.contract_target:
+        command.extend(["--target-surface", args.contract_target])
     proposal = json.loads(subprocess.run(command, check=True, text=True, capture_output=True).stdout)
     if proposal["status"] != "ready":
         print(json.dumps(proposal, ensure_ascii=False, indent=2, sort_keys=True))
@@ -190,10 +97,15 @@ def main() -> None:
     language_rules = json.loads(Path(args.rules).read_text(encoding="utf-8"))
     wordnet_rules_path = Path("data/wordnet-context-rules.json")
     wordnet_rules = json.loads(wordnet_rules_path.read_text(encoding="utf-8"))
+    aliases = {}
+    with (args.snapshot / "aliases.jsonl").open(encoding="utf-8") as source:
+        for line in source:
+            row = json.loads(line)
+            aliases.setdefault(row["alias"].casefold(), []).append(row["id"])
     try:
         proposal["constraints"].extend(
             compile_gf_constraints(
-                proposal, trees[0], language_rules, wordnet_rules
+                proposal, trees[0], language_rules, wordnet_rules, aliases
             )
         )
     except ValueError as error:

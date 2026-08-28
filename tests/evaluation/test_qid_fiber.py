@@ -1,11 +1,15 @@
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from contextual_rule_compiler import compile_gf_constraints
 
 
 class QidFiberTests(unittest.TestCase):
@@ -97,6 +101,104 @@ class QidFiberTests(unittest.TestCase):
                 completed.stdout.count("stage="),
                 completed.stdout.count("agda-layer-check=true"),
             )
+
+    def test_verbnet_only_action_builds_checked_layers(self):
+        completed = subprocess.run(
+            [
+                "python3",
+                str(ROOT / "scripts/run_automatic_contextual_pipeline.py"),
+                "--engine",
+                str(ROOT / "build/metonymy"),
+                "--snapshot",
+                str(ROOT / "data/wikidata-openalex-snapshot"),
+                "--sentence",
+                "Waterloo declared a programme in physics",
+                "--source",
+                "Waterloo",
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+            cwd=ROOT,
+        )
+        self.assertIn("action=declare role=SubjectHole", completed.stdout)
+        self.assertIn("survivors=[Q1049470,Q2004561]", completed.stdout)
+        self.assertEqual(
+            completed.stdout.count("stage="),
+            completed.stdout.count("agda-layer-check=true"),
+        )
+
+    def test_proposer_does_not_require_manual_action_registry(self):
+        rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        rules["morphology_overrides"] = {}
+        with tempfile.TemporaryDirectory() as directory:
+            rules_path = Path(directory) / "rules.json"
+            rules_path.write_text(json.dumps(rules), encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    "python3",
+                    str(ROOT / "scripts/propose_contextual_scenario.py"),
+                    "--snapshot",
+                    str(ROOT / "data/wikidata-openalex-snapshot"),
+                    "--sentence",
+                    "Waterloo announced a programme in physics",
+                    "--source",
+                    "Waterloo",
+                    "--rules",
+                    str(rules_path),
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+                cwd=ROOT,
+            )
+        proposal = json.loads(completed.stdout)
+        self.assertEqual(proposal["status"], "ready")
+        self.assertEqual(proposal["action"], "announce")
+        self.assertTrue(
+            proposal["constraints"][0]["provenance"].startswith(
+                "compiled-action-role:v1:"
+            )
+        )
+        self.assertIn("Conducts", proposal["bridge_relations"])
+
+    def test_wordnet_sort_drives_generic_in_modifier_template(self):
+        language_rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wordnet_rules = json.loads(
+            (ROOT / "data/wordnet-context-rules.json").read_text(encoding="utf-8")
+        )
+        constraints = compile_gf_constraints(
+            {
+                "action": "announce",
+                "sentence": "Waterloo announced a program in physics",
+            },
+            (
+                'Pred (OpenPN "Waterloo") '
+                '(Compl Announce '
+                '(ModifyNP (OpenIndefCN "program" "?5") '
+                '(InPP (OpenPN "physics"))))'
+            ),
+            language_rules,
+            wordnet_rules,
+            {"physics": ["Q413"]},
+        )
+        self.assertEqual(len(constraints), 1)
+        self.assertEqual(
+            constraints[0]["payload"]["requires_relation"],
+            {"relation": "Conducts", "target": "Q413"},
+        )
+        self.assertIn(
+            "PrincetonWordNet:data.noun:",
+            constraints[0]["provenance"],
+        )
 
     def test_unique_and_ambiguous_contextual_contraction(self):
         engine = ROOT / "build" / "metonymy"

@@ -18,6 +18,7 @@ abstract Metonymy = {
     OpenAdjDefCN : String -> String -> String -> NP ;
     OpenAdjIndefCN : String -> String -> String -> NP ;
     Announce : V2 ;
+    OpenV2 : String -> V2 ;
     OpenPN : String -> NP ;
     OpenIndefCN : String -> String -> NP ;
     OpenDefCN : String -> String -> NP ;

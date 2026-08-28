@@ -1,41 +1,28 @@
 {
-  "schema_version": "contextual-language-rules-1",
-  "actions": {
+  "schema_version": "contextual-language-rules-2",
+  "action_role_source": {
+    "hard_requirements": "data/predicates.tsv",
+    "selectional_preferences": "data/verbnet-action-roles.tsv",
+    "policy": "prefer-hard-else-disjoin-compiled-preferences"
+  },
+  "bridge_relation_source": "snapshot/rules.json",
+  "max_bridge_depth": 1,
+  "morphology_overrides": {
     "announce": {
       "forms": ["announce", "announced", "announces"],
-      "gf_form": "announces",
-      "role": "SubjectHole",
-      "requirement": "AnyOf [HasSort Animate,HasSort Organization]",
-      "bridge_relations": ["InstitutionOf", "AffiliatedWith"],
-      "max_depth": 1,
-      "provenance": "VerbNet:say-37.7"
+      "gf_form": "announces"
     },
     "read": {
       "forms": ["read", "reads"],
-      "gf_form": "reads",
-      "role": "ObjectHole",
-      "requirement": "HasSort Readable",
-      "bridge_relations": ["Authored", "Created"],
-      "max_depth": 1,
-      "provenance": "local:audited-read"
+      "gf_form": "reads"
     },
     "sign": {
       "forms": ["sign", "signed", "signs"],
-      "gf_form": "signs",
-      "role": "SubjectHole",
-      "requirement": "HasSort Agent",
-      "bridge_relations": ["InstitutionOf", "GovernedBy", "AffiliatedWith"],
-      "max_depth": 1,
-      "provenance": "local:audited-sign"
+      "gf_form": "signs"
     },
     "wear": {
       "forms": ["wear", "wears", "wore"],
-      "gf_form": "wears",
-      "role": "ObjectHole",
-      "requirement": "HasSort Wearable",
-      "bridge_relations": ["Produces", "Created"],
-      "max_depth": 1,
-      "provenance": "local:audited-wear"
+      "gf_form": "wears"
     }
   },
   "lexical_sorts": {
@@ -46,7 +33,7 @@
   },
   "context_templates": [
     {
-      "construction": "ModIn",
+      "construction": "ModifyNP+InPP",
       "head_sorts": ["Programme", "ResearchProgramme"],
       "relation": "Conducts",
       "target_slot": "modifier",

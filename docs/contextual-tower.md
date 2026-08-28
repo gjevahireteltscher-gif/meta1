@@ -100,16 +100,30 @@ and bound into certificates through `graph_sha256`.
 The automatic proposer combines:
 
 - GF-compatible lexical anchors and spans;
-- versioned VerbNet/action rules from `data/contextual-language-rules.json`;
+- hard action roles from `data/predicates.tsv` and all compiled Action×Role
+  projections from `data/verbnet-action-roles.tsv`;
 - 5,001 lexical projections generated from Princeton WordNet;
 - QID aliases and graph claims from the frozen Wikidata snapshot;
 - optional OpenAlex institution-topic evidence in
   `data/wikidata-openalex-snapshot/evidence.jsonl`.
 
+Action senses that share a lemma and hole are alternatives, so their distinct
+requirements are compiled into one disjunction rather than intersected as
+separate layers. Audited hard requirements take precedence; otherwise the
+layer is explicitly marked `selectional-preference-as-context-filter`.
+Bridge relations come from the active snapshot's `rules.json`, not from a
+per-action allowlist. `data/contextual-language-rules.json` now retains only
+irregular morphology overrides and sort-level composition/construction
+schemas.
+
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 For example, WordNet supplies `Political` and `Agreement`, the versioned
 composition matrix derives `PoliticalAgreement`, and the action/object rule
 adds the corresponding signer requirement. Unknown compositions fail closed.
+The same tree walker recognizes the real GF shape
+`ModifyNP(head, InPP(topic))`; the generic Programme/ResearchProgramme
+template derives `Conducts(_, topic-QID)` without matching the words
+`programme` or `physics` in code.
 After every cumulative constraint prefix, Haskell calls compiled Agda
 `contextLayerCheck` for every survivor and every obstruction before advancing
 to the next stage.

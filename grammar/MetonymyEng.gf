@@ -30,6 +30,7 @@ concrete MetonymyEng of Metonymy =
         a = R.agrP3 R.Sg
         } ;
     Announce = mkV2 "announce" ;
+    OpenV2 verb = mkV2 verb.s ;
     OpenPN name =
       lin NP {s = \\_ => name.s ; a = R.agrP3 R.Sg} ;
     OpenIndefCN singular plural =
