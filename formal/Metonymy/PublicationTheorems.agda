@@ -54,6 +54,10 @@ import Metonymy.ContextualModel
 -- problem, and compatibility compression is functorial.
 import Metonymy.FilteredContext
 
+-- Soundness of cumulative positive GF-subtree compilation and the
+-- non-filtering semantics of unpromoted selectional preferences.
+import Metonymy.CompilerSoundness
+
 -- Instantiation of the filtered theorem with the executable finite checker
 -- and proof-carrying runtime candidates.
 import Metonymy.FilteredRuntime

@@ -20,6 +20,12 @@ make formal
 Agda witnesses. `ARTIFACT_MANIFEST.json` records SHA-256 hashes of all Agda
 sources and the pinned toolchain metadata.
 
+Compiler-specific publication witnesses live in
+`CompilerSoundness.agda`. It proves that every supported positive GF subtree
+compiles to a genuine refinement and that every inhabitant of the resulting
+fiber restricts to the incoming fiber. It also re-exports the executable
+non-filtering theorems for unpromoted preferences from `Checker.agda`.
+
 The development is checked with `--safe`. Publication modules contain no
 `postulate`, `TERMINATING`, `NON_TERMINATING`, `NO_POSITIVITY`, or unresolved
 metavariables.

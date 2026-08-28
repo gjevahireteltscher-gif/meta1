@@ -31,6 +31,8 @@ formal:
 	$(AGDA) $(AGDA_RTS) --safe -i "$(CUBICAL_LIB)" -i formal \
 		formal/Metonymy/FilteredContext.agda
 	$(AGDA) $(AGDA_RTS) --safe -i "$(CUBICAL_LIB)" -i formal \
+		formal/Metonymy/CompilerSoundness.agda
+	$(AGDA) $(AGDA_RTS) --safe -i "$(CUBICAL_LIB)" -i formal \
 		formal/Metonymy/FilteredRuntime.agda
 	$(AGDA) $(AGDA_RTS) --safe -i "$(CUBICAL_LIB)" -i formal \
 		formal/Metonymy/TwoTruncatedContext.agda
