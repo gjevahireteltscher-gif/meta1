@@ -138,6 +138,27 @@ def _mention_span(sentence: str, surfaces: list[str]) -> tuple[int, int] | None:
     return None
 
 
+def _split_top_level(value: str) -> list[str]:
+    fields, start, depth = [], 0, 0
+    for index, character in enumerate(value):
+        if character in "[(":
+            depth += 1
+        elif character in "])":
+            depth -= 1
+        elif character == "," and depth == 0:
+            fields.append(value[start:index])
+            start = index + 1
+    fields.append(value[start:])
+    return [field.strip() for field in fields if field.strip()]
+
+
+def _disjunction_members(requirement: str) -> list[str]:
+    prefix = "AnyOf ["
+    if requirement.startswith(prefix) and requirement.endswith("]"):
+        return _split_top_level(requirement[len(prefix) : -1])
+    return [requirement]
+
+
 def resolve_action(
     sentence: str,
     target_surfaces: list[str],
@@ -184,7 +205,13 @@ def resolve_action(
     ]
     hard = [role for role in same_action if role.strength == "HardRequirement"]
     chosen = hard or same_action
-    requirements = sorted({role.requirement for role in chosen})
+    requirements = sorted(
+        {
+            member
+            for role in chosen
+            for member in _disjunction_members(role.requirement)
+        }
+    )
     requirement = (
         requirements[0]
         if len(requirements) == 1
