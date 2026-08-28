@@ -4,6 +4,7 @@ import sys
 import unittest
 import xml.etree.ElementTree as ET
 import csv
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,6 +20,21 @@ from import_verbnet import render_requirement, restriction_expression
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_independent_conmec_selection_is_frozen_and_balanced(self) -> None:
+        manifest = json.loads(
+            (
+                ROOT
+                / "evaluation"
+                / "independent-conmec-300"
+                / "selection-manifest.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["instances"], 300)
+        self.assertEqual(len(manifest["selected_ids"]), 300)
+        self.assertEqual(len(set(manifest["selected_ids"])), 300)
+        self.assertEqual(set(manifest["strata"].values()), {25})
+        self.assertFalse(manifest["corpus_text_redistributed"])
+
     def test_verbnet_nested_role_requirements_are_preserved(self) -> None:
         node = ET.fromstring(
             """

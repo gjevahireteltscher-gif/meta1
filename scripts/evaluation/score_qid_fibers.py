@@ -44,6 +44,13 @@ def main() -> None:
     direction_totals = Counter()
     direction_exact = Counter()
     contraction_safety = Counter()
+    covered_instances = 0
+    abstentions = 0
+    total_stages = 0
+    verified_stages = 0
+    preference_candidates = 0
+    preference_matches = 0
+    layer_counts = Counter()
     missing = []
     for row in gold_rows:
         identifier = row["id"]
@@ -65,12 +72,18 @@ def main() -> None:
         if expected and not overlap:
             missing.append(identifier)
         inference = inference_rows.get(identifier, {})
+        covered = inference.get("status") == "ok" and bool(inference.get("stages"))
+        covered_instances += covered
+        abstentions += not covered
+        layer_counts[len(inference.get("stages", []))] += 1
         direction = inference.get("direction", "expand")
         direction_totals[direction] += 1
         direction_exact[direction] += expected == fiber
         if inference.get("contraction_safety"):
             contraction_safety[inference["contraction_safety"]] += 1
         for stage in inference.get("stages", []):
+            total_stages += 1
+            verified_stages += bool(stage.get("agda_checked"))
             stage_name = stage.get("constraint", "unknown")
             input_count = (
                 len(inference.get("stages", [])[stage["index"] - 1]["survivors"])
@@ -81,6 +94,9 @@ def main() -> None:
             eliminations[stage_name] += max(0, input_count - survived)
             for obstruction in stage.get("obstructions", []):
                 obstruction_distribution[obstruction.split(" ", 1)[0]] += 1
+            if stage.get("preferred") or stage.get("preference_misses"):
+                preference_candidates += len(stage.get("survivors", []))
+                preference_matches += len(stage.get("preferred", []))
         expected_families = set(row.get("gold_families", []))
         predicted_families = set(inference.get("families", []))
         family_intersection += len(expected_families & predicted_families)
@@ -124,6 +140,23 @@ def main() -> None:
         },
         "contraction_safety": dict(sorted(contraction_safety.items())),
         "gold_without_fiber_hit": missing,
+        "coverage": {
+            "numerator": covered_instances,
+            "denominator": len(gold_rows),
+        },
+        "abstention_rate": {
+            "numerator": abstentions,
+            "denominator": len(gold_rows),
+        },
+        "formal_stage_verification_rate": {
+            "numerator": verified_stages,
+            "denominator": total_stages,
+        },
+        "preference_match_rate": {
+            "numerator": preference_matches,
+            "denominator": preference_candidates,
+        },
+        "layer_count_histogram": dict(sorted(layer_counts.items())),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

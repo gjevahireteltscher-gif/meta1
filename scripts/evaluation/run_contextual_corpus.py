@@ -13,7 +13,7 @@ from pathlib import Path
 QID = re.compile(r"Q[0-9]+")
 
 
-def run_one(engine: Path, snapshot: Path, row: dict) -> dict:
+def run_one(engine: Path, snapshot: Path, ablation: str, row: dict) -> dict:
     command = [
         "python3",
         "scripts/run_automatic_contextual_pipeline.py",
@@ -25,6 +25,8 @@ def run_one(engine: Path, snapshot: Path, row: dict) -> dict:
         row["sentence"],
         "--source",
         row["source"],
+        "--ablation",
+        ablation,
     ]
     if row.get("direction") == "contract":
         command.extend(["--contract-target", row["contract_target"]])
@@ -48,6 +50,7 @@ def run_one(engine: Path, snapshot: Path, row: dict) -> dict:
         "exit_code": completed.returncode,
         "direction": row.get("direction", "expand"),
         "expected_status": row.get("expected_status", "accepted"),
+        "ablation": ablation,
         "stages": [],
     }
     current = None
@@ -69,6 +72,8 @@ def run_one(engine: Path, snapshot: Path, row: dict) -> dict:
                 "constraint": match.group(2),
                 "survivors": [],
                 "obstructions": [],
+                "preferred": [],
+                "preference_misses": [],
                 "agda_checked": False,
             }
             result["stages"].append(current)
@@ -78,6 +83,10 @@ def run_one(engine: Path, snapshot: Path, row: dict) -> dict:
             current["agda_checked"] = True
         elif current is not None and line.strip().startswith("obstruction="):
             current["obstructions"].append(line.strip().split("=", 1)[1])
+        elif current is not None and line.strip().startswith("preferred="):
+            current["preferred"] = QID.findall(line)
+        elif current is not None and line.strip().startswith("preference-miss="):
+            current["preference_misses"].append(line.strip().split("=", 1)[1])
     result["fiber"] = (
         [result["contracted_source"]]
         if "contracted_source" in result
@@ -95,6 +104,18 @@ def main() -> None:
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--allow-failures", action="store_true")
+    parser.add_argument(
+        "--ablation",
+        choices=[
+            "full",
+            "no-wordnet",
+            "no-framenet",
+            "no-existential",
+            "no-formal-filtering",
+        ],
+        default="full",
+    )
     args = parser.parse_args()
     inputs = [
         json.loads(line)
@@ -104,7 +125,9 @@ def main() -> None:
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         results = list(
             executor.map(
-                lambda row: run_one(args.engine, args.snapshot, row),
+                lambda row: run_one(
+                    args.engine, args.snapshot, args.ablation, row
+                ),
                 inputs,
             )
         )
@@ -115,7 +138,7 @@ def main() -> None:
     )
     failures = sum(row["status"] != "ok" for row in results)
     print(f"instances={len(results)} failures={failures}")
-    if failures:
+    if failures and not args.allow_failures:
         raise SystemExit(1)
 
 
