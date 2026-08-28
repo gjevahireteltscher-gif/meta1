@@ -939,5 +939,13 @@ compiledGFFiberSound :
   (tree : PositiveGFTree (Constraint system) category) →
   Fiber system (collectGFConstraints tree ++ Γ) →
   Fiber system Γ
-compiledGFFiberSound {system} tree =
-  restrict (compiledGFRefinementSound tree)
+compiledGFFiberSound {system} {category} {Γ} tree =
+  restrict
+    {system = system}
+    {weaker = Γ}
+    {stronger = collectGFConstraints tree ++ Γ}
+    (compiledGFRefinementSound
+      {system = system}
+      {category = category}
+      {Γ = Γ}
+      tree)
