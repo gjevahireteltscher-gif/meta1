@@ -170,6 +170,34 @@ class QidFiberTests(unittest.TestCase):
             completed.stdout.count("agda-layer-check=true"),
         )
 
+    def test_closed_gf_noun_still_builds_cumulative_frame_layer(self):
+        completed = subprocess.run(
+            [
+                "python3",
+                str(ROOT / "scripts/run_automatic_contextual_pipeline.py"),
+                "--engine",
+                str(ROOT / "build/metonymy"),
+                "--snapshot",
+                str(ROOT / "data/wikidata-openalex-snapshot"),
+                "--sentence",
+                "Moscow signed the agreement",
+                "--source",
+                "Moscow",
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+            cwd=ROOT,
+        )
+        self.assertIn(
+            "constraint=Requires (HasSort Agent)@sign agreement",
+            completed.stdout,
+        )
+        self.assertEqual(
+            completed.stdout.count("stage="),
+            completed.stdout.count("agda-layer-check=true"),
+        )
+
     def test_proposer_does_not_require_manual_action_registry(self):
         rules = json.loads(
             (ROOT / "data/contextual-language-rules.json").read_text(

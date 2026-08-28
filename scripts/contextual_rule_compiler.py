@@ -399,6 +399,23 @@ def compile_gf_constraints(
             if head_lemma
             else None
         )
+        if not head_rule:
+            action_end = proposal["constraints"][0]["origin"]["end"]
+            fallback_evidence = sorted(
+                (
+                    evidence
+                    for evidence in proposal.get("lexical_evidence", [])
+                    if evidence["start"] >= action_end
+                ),
+                key=lambda evidence: evidence["start"],
+            )
+            if fallback_evidence:
+                evidence = fallback_evidence[0]
+                head_lemma = evidence["surface"].casefold()
+                head_rule = {
+                    "requirement": evidence["requirement"],
+                    "provenance": evidence["provenance"],
+                }
         if head_lemma and head_rule:
             head_sorts = _sorts(head_rule["requirement"])
             frame_names = sorted(
