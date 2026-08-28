@@ -493,7 +493,7 @@ def compile_gf_constraints(
             )
 
         if (
-            proposal["role"] == "ObjectHole"
+            proposal.get("role") == "ObjectHole"
             and isinstance(object_node, GFNode)
             and object_node.constructor == "ModifyRel"
         ):
