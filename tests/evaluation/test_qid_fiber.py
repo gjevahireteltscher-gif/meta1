@@ -164,7 +164,10 @@ class QidFiberTests(unittest.TestCase):
                 "compiled-action-role:v1:"
             )
         )
-        self.assertIn("Conducts", proposal["bridge_relations"])
+        self.assertEqual(
+            proposal["bridge_relations"],
+            ["InstitutionOf", "AffiliatedWith"],
+        )
 
     def test_wordnet_sort_drives_generic_in_modifier_template(self):
         language_rules = json.loads(

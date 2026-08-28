@@ -75,9 +75,24 @@ def main() -> None:
     role = action["role"]
     requirement = action["requirement"]
     candidates = aliases.get(source_text.casefold(), [])
-    bridge_relations = list(
+    snapshot_relations = list(
         dict.fromkeys(rule["internal"] for rule in snapshot_rules["relations"])
     )
+    requirement_sorts = set(
+        re.findall(r"HasSort ([A-Za-z][A-Za-z0-9]*)", requirement)
+    )
+    configured_relations = [
+        relation
+        for sort_name in sorted(requirement_sorts)
+        for relation in language_rules.get("bridge_relations_by_sort", {}).get(
+            sort_name, []
+        )
+    ]
+    bridge_relations = [
+        relation
+        for relation in dict.fromkeys(configured_relations)
+        if relation in snapshot_relations
+    ] or snapshot_relations
     proposal = {
         "schema_version": "contextual-scenario-proposal-1",
         "graph_sha256": manifest["graph_sha256"],

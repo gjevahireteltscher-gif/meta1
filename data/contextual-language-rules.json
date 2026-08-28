@@ -5,7 +5,19 @@
     "selectional_preferences": "data/verbnet-action-roles.tsv",
     "policy": "prefer-hard-else-disjoin-compiled-preferences"
   },
-  "bridge_relation_source": "snapshot/rules.json",
+  "bridge_relation_source": "requirement-sort-map-filtered-by-snapshot",
+  "bridge_relations_by_sort": {
+    "Agent": ["InstitutionOf", "GovernedBy", "AffiliatedWith"],
+    "Animate": ["InstitutionOf", "AffiliatedWith"],
+    "Organization": ["InstitutionOf", "AffiliatedWith"],
+    "Readable": ["Authored", "Created"],
+    "Wearable": ["Produces", "Created"],
+    "Clothing": ["Produces", "Created"],
+    "Edible": ["Contains", "Produces"],
+    "Drinkable": ["Contains", "Produces"],
+    "Product": ["Produces", "Created"],
+    "Producer": ["ProducedBy", "Created"]
+  },
   "max_bridge_depth": 1,
   "morphology_overrides": {
     "announce": {

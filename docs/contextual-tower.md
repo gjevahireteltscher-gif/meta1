@@ -111,10 +111,11 @@ Action senses that share a lemma and hole are alternatives, so their distinct
 requirements are compiled into one disjunction rather than intersected as
 separate layers. Audited hard requirements take precedence; otherwise the
 layer is explicitly marked `selectional-preference-as-context-filter`.
-Bridge relations come from the active snapshot's `rules.json`, not from a
-per-action allowlist. `data/contextual-language-rules.json` now retains only
-irregular morphology overrides and sort-level composition/construction
-schemas.
+Bridge relations are selected by a global requirement-sort schema and then
+intersected with the active snapshot's `rules.json`, rather than being listed
+per action or scenario. `data/contextual-language-rules.json` now retains only
+irregular morphology overrides and sort-level bridge, composition, and
+construction schemas.
 
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 For example, WordNet supplies `Political` and `Agreement`, the versioned
