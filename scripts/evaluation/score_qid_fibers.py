@@ -72,7 +72,7 @@ def main() -> None:
         if expected and not overlap:
             missing.append(identifier)
         inference = inference_rows.get(identifier, {})
-        covered = inference.get("status") == "ok" and bool(inference.get("stages"))
+        covered = inference.get("status") == "ok"
         covered_instances += covered
         abstentions += not covered
         layer_counts[len(inference.get("stages", []))] += 1

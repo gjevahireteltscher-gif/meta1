@@ -8,7 +8,8 @@ RGL_PATH = $(RGL_LIB)/alltenses:$(RGL_LIB)/prelude
 
 .PHONY: all grammar formal formal-artifact checker engine test evaluation-test experiment \
 	safecon safecon-context generated-check verbnet-generated-check verify \
-	qid-fiber-test contextual-corpus-test reproduce clean
+	framenet-generated-check qid-fiber-test contextual-corpus-test \
+	contextual-ablations reproduce clean
 
 all: grammar formal checker engine
 
@@ -87,7 +88,12 @@ generated-check:
 	./scripts/generate_gf_lexicon.py
 	git diff --exit-code -- \
 		grammar/GeneratedMetonymy.gf \
-		grammar/GeneratedMetonymyEng.gf
+		grammar/GeneratedMetonymyEng.gf \
+		data/contextual-gf-actions.json
+
+framenet-generated-check:
+	python3 scripts/generate_framenet_capabilities.py
+	git diff --exit-code -- data/framenet-role-capabilities.json
 
 verbnet-generated-check:
 	./scripts/import_verbnet.py
@@ -102,6 +108,7 @@ verify:
 	$(MAKE) safecon
 	$(MAKE) safecon-context
 	$(MAKE) generated-check
+	$(MAKE) framenet-generated-check
 	$(MAKE) qid-fiber-test
 
 qid-fiber-test: engine
@@ -136,6 +143,15 @@ contextual-corpus-test: engine
 		--gold evaluation/contextual-multidomain/audited-gold.jsonl \
 		--output build/evaluation/contextual-audited-report.json
 	python3 -c 'import json; assert json.load(open("build/evaluation/contextual-silver-report.json")) == json.load(open("evaluation/contextual-multidomain/silver-summary.json")); assert json.load(open("build/evaluation/contextual-audited-report.json")) == json.load(open("evaluation/contextual-multidomain/audited-summary.json"))'
+
+contextual-ablations: engine
+	python3 scripts/evaluation/run_contextual_ablations.py \
+		--dataset evaluation/contextual-multidomain/audited-inputs.jsonl \
+		--gold evaluation/contextual-multidomain/audited-gold.jsonl \
+		--engine build/metonymy \
+		--snapshot data/wikidata-openalex-snapshot \
+		--output-dir build/evaluation/contextual-ablations
+	python3 -c 'import json; assert json.load(open("build/evaluation/contextual-ablations/summary.json")) == json.load(open("evaluation/contextual-multidomain/ablation-summary.json"))'
 
 reproduce:
 	./scripts/reproduce.sh

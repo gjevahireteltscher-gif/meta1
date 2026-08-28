@@ -28,10 +28,14 @@ make safecon
 make safecon-context
 make qid-fiber-test
 make contextual-corpus-test
+make contextual-ablations
+make framenet-generated-check
 make formal-artifact
 
 git diff --exit-code -- \
   grammar/GeneratedMetonymy.gf \
-  grammar/GeneratedMetonymyEng.gf
+  grammar/GeneratedMetonymyEng.gf \
+  data/contextual-gf-actions.json \
+  data/framenet-role-capabilities.json
 
 printf '%s\n' "publication artifact verified"

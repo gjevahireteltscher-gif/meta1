@@ -332,7 +332,12 @@ runContextualContraction formalFiltering snapshot scenario target =
             (contextScenarioContext scenario)
             target
         else
-          Left "formal-filtering-disabled-for-contraction" of
+          contextualContractionUnchecked
+            snapshot
+            (contextScenarioRelations scenario)
+            (contextScenarioMaxDepth scenario)
+            (contextScenarioContext scenario)
+            target of
     Left message ->
       die ("contextual contraction rejected: " <> message)
     Right result -> do

@@ -2,6 +2,7 @@ module Metonymy.ContextualChecked
   ( contextualFiberChecked
   , ContextualContraction (..)
   , contextualContractionChecked
+  , contextualContractionUnchecked
   ) where
 
 import Metonymy.Contextual
@@ -86,6 +87,28 @@ contextualContractionChecked ::
 contextualContractionChecked snapshot relations maxDepth context target = do
   stages <-
     contextualFiberChecked snapshot relations maxDepth context
+  finishContraction snapshot relations maxDepth context target stages
+
+contextualContractionUnchecked ::
+  Snapshot ->
+  [Relation] ->
+  Int ->
+  Context ->
+  EntityId ->
+  Either String ContextualContraction
+contextualContractionUnchecked snapshot relations maxDepth context target = do
+  stages <- contextualFiber snapshot relations maxDepth context
+  finishContraction snapshot relations maxDepth context target stages
+
+finishContraction ::
+  Snapshot ->
+  [Relation] ->
+  Int ->
+  Context ->
+  EntityId ->
+  [FiberStage] ->
+  Either String ContextualContraction
+finishContraction snapshot relations maxDepth context target stages = do
   finalStage <-
     case reverse stages of
       stage : _ -> Right stage
