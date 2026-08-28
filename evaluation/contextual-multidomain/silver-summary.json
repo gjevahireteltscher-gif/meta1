@@ -1,6 +1,14 @@
 {
+  "abstention_rate": {
+    "denominator": 69,
+    "numerator": 0
+  },
   "contraction_safety": {
     "unique-contextual-fiber": 12
+  },
+  "coverage": {
+    "denominator": 69,
+    "numerator": 69
   },
   "eliminations_per_constraint": {
     "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@sign political agreement": 19,
@@ -42,6 +50,10 @@
     "denominator": 69,
     "numerator": 69
   },
+  "formal_stage_verification_rate": {
+    "denominator": 218,
+    "numerator": 218
+  },
   "gold_fully_contained_rate": {
     "denominator": 69,
     "numerator": 69
@@ -56,7 +68,17 @@
   },
   "gold_without_fiber_hit": [],
   "instances": 69,
+  "layer_count_histogram": {
+    "0": 8,
+    "2": 2,
+    "3": 22,
+    "4": 37
+  },
   "obstruction_distribution": {
     "MissingRequirement": 47
+  },
+  "preference_match_rate": {
+    "denominator": 0,
+    "numerator": 0
   }
 }

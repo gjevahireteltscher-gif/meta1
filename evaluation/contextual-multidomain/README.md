@@ -49,3 +49,16 @@ exactly: 6/6 non-empty gold hits, 9/9 QID micro recall, 5/5 expansions,
 artifact, not yet a statistically meaningful external benchmark. A
 publication should report it alongside—not instead of—the existing
 WiMCor/ConMeC external results.
+
+`ablation-summary.json` records the fixed five-condition comparison. On this
+small audited regression set, removing FrameNet or existential layers does
+not change endpoint accuracy, which is itself an important negative result:
+the current nine examples cannot support a causal empirical claim for those
+components. Removing WordNet lowers exact match from 9/9 to 7/9 and produces
+one abstention. Disabling formal filtering preserves these particular Haskell
+outputs but correctly records 0/24 formally verified stages.
+
+The independently annotated 300-instance ConMeC selection is documented in
+`../independent-conmec-300/`. It is kept separate because ConMeC evaluates
+metonymy detection and bridge families rather than this artifact's
+snapshot-relative endpoint fibers.

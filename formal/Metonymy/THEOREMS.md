@@ -79,6 +79,24 @@ not impossibility in natural language or the world.
 Naturality fixes one implicit runtime clause per tower. Arbitrary non-monotone
 discourse updates are outside this theorem.
 
+## Positive GF compiler soundness
+
+| Statement | Agda witness |
+|---|---|
+| Every supported GF constructor elaborates to its collected constraints | `FilteredContext.gfElaborationExact` |
+| Every elaborated constraint belongs to the versioned rule snapshot | `FilteredContext.gfElaborationCertified` |
+| Compiled subtree constraints refine the incoming context | `FilteredContext.compiledGFRefinementSound` |
+| Every inhabitant of the compiled fiber restricts to the incoming fiber | `FilteredContext.compiledGFFiberSound` |
+| Preference requirements do not filter the hard fiber | `Checker.preferenceRequirementDoesNotFilter` |
+| Preference relations do not filter the hard fiber | `Checker.preferenceRelationDoesNotFilter` |
+| Existential preferences do not filter the hard fiber | `Checker.preferenceExistentialDoesNotFilter` |
+
+The supported positive grammar includes direct objects, adjective–noun
+composition, `in/about/with/for` PP modifiers, and relative-clause
+composition. The theorem is parametric in the constraint interpretation; it
+does not claim that an external FrameNet projection is linguistically
+correct. That claim remains tied to the versioned projection provenance.
+
 ## Unique-fiber contraction
 
 The reverse path `sym (stagePath selected)` always exists for a fiber

@@ -164,6 +164,25 @@ fiber evaluation: 69 silver instances (49 expansions, 20 unique-fiber
 contractions) and 9 reviewed regressions, all exact against frozen-graph
 gold. See `contextual-multidomain/README.md`.
 
+The independent ConMeC-300 selection freezes 300 externally human-annotated
+instances (25 per category×label stratum) without committing corpus text.
+It evaluates detection and bridge family, not endpoint QIDs. Reproduce it
+using `evaluation/independent-conmec-300/README.md`.
+
+Contextual reports additionally expose coverage, abstention, empty-fiber
+rate, eliminations by cumulative layer, gold-in-fiber, preference-match rate,
+and formal-stage verification rate. Run the fixed semantic-source ablations:
+
+```bash
+make contextual-ablations
+```
+
+The conditions are `full`, `no-wordnet`, `no-framenet`, `no-existential`,
+and `no-formal-filtering`. The last condition retains Haskell evaluation but
+deliberately bypasses the Agda layer authorization; reports therefore record
+a zero formal-stage verification rate rather than presenting those results
+as certified.
+
 ## Recorded SemEval location result
 
 The verified 908-instance location test split was run at commit
