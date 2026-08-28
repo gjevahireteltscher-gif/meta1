@@ -66,7 +66,7 @@ constraintHolds kb candidate constraint with constraintPayload constraint
     and relationExists kb (edge relation candidate target)
 ... | requiresSome relation requirement =
   not (stringEqual (constraintProvenance constraint) "")
-    and any matches (relationFacts kb)
+    and any matches (KnowledgeBase.relationFacts kb)
   where
   matches : RelationFact → Bool
   matches fact =
