@@ -250,7 +250,7 @@ def resolve_action(
     digest = hashlib.sha256(
         json.dumps(evidence, separators=(",", ":")).encode()
     ).hexdigest()[:16]
-    strength = "hard" if hard else "selectional-preference-as-context-filter"
+    strength = "hard" if hard else "selectional-preference"
     override = morphology_overrides.get(selected.lemma, {})
     return {
         "lemma": selected.lemma,

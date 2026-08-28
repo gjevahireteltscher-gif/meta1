@@ -110,7 +110,9 @@ The automatic proposer combines:
 Action senses that share a lemma and hole are alternatives, so their distinct
 requirements are compiled into one disjunction rather than intersected as
 separate layers. Audited hard requirements take precedence; otherwise the
-layer is explicitly marked `selectional-preference-as-context-filter`.
+layer is represented by `Prefers`/`PrefersSome`/`PrefersRelation`. A
+preference records its matching subset and misses but does not remove
+candidates from the hard fiber. Agda independently verifies both partitions.
 Bridge relations are selected by a global requirement-sort schema and then
 intersected with the active snapshot's `rules.json`, rather than being listed
 per action or scenario. `data/contextual-language-rules.json` now retains only
@@ -121,10 +123,10 @@ Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 For example, WordNet supplies `Political` and `Agreement`, the versioned
 composition matrix derives `PoliticalAgreement`, and the action/object rule
 adds the corresponding signer requirement. Unknown compositions fail closed.
-The same tree walker recognizes the real GF shape
-`ModifyNP(head, InPP(topic))`; the generic Programme/ResearchProgramme
-template derives `Conducts(_, topic-QID)` without matching the words
-`programme` or `physics` in code.
+The same tree walker recognizes `in/about/with/for` PP modifiers and
+WordNet-generated common nouns inside relative clauses. The generic
+Programme/ResearchProgramme template derives `Conducts(_, topic-QID)` without
+matching the words `programme` or `physics` in code.
 
 ### Cumulative constituent layers
 
@@ -184,6 +186,21 @@ python3 scripts/import_openalex_context.py \
   --source-qids Q1049470,Q2004561 \
   --output build/openalex-context-evidence.jsonl
 ```
+
+The complete FrameNet XML adapter imports frame definitions, FEs, lexical
+units, and FE/GF/PT valence patterns from a user-supplied 1.7 distribution:
+
+```bash
+python3 scripts/import_framenet_context.py \
+  --framenet-dir /path/to/fndata-1.7 \
+  --output build/framenet-context
+```
+
+Pass `--framenet-snapshot build/framenet-context` to the automatic pipeline.
+When the licensed XML is absent, pinned VerbNet FrameNet links remain a
+metadata fallback. The 32 evidence-ranked role-capability projections in
+`data/framenet-role-capabilities.json` are generated reproducibly and remain
+preferences.
 
 External evidence is merged by `merge_context_evidence.py`, which recomputes
 `graph_sha256`. It cannot silently mutate an already certified snapshot.

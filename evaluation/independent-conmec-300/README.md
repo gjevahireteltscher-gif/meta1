@@ -28,3 +28,11 @@ The labels were produced by ConMeC annotators and are independent of this
 system's rules and snapshots. This does not make endpoint-QID evaluation
 independent: ConMeC supplies metonymy and category labels, not explicit entity
 expansion targets.
+
+## Recorded result
+
+The full condition covers 115/300 instances (`0.3833`) with selective
+accuracy `0.5304`. Metonymic recall is `0.0067` (1/150) and metonymic F1 is
+`0.0130`. These independently annotated results are deliberately retained
+despite being weak: the expanded formal machinery does not by itself solve
+open-domain frame selection or entity linking. See `result-summary.json`.

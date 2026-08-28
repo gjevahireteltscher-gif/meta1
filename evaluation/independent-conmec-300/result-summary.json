@@ -1,0 +1,32 @@
+{
+  "benchmark": "independent-conmec-300-v1",
+  "condition": "full",
+  "instances": 300,
+  "gold_distribution": {
+    "literal": 150,
+    "metonymic": 150
+  },
+  "coverage": 0.38333333333333336,
+  "selective_accuracy": 0.5304347826086957,
+  "micro_precision": 0.5304347826086957,
+  "micro_recall": 0.20333333333333334,
+  "micro_f1": 0.29397590361445786,
+  "macro_f1": 0.23637856396477086,
+  "metonymic": {
+    "precision": 0.25,
+    "recall": 0.006666666666666667,
+    "f1": 0.012987012987012988
+  },
+  "statuses": {
+    "abstain": 185,
+    "emitted": 4,
+    "no_rewrite": 111
+  },
+  "bridge_family": {
+    "accuracy": 0.0,
+    "correct": 0,
+    "evaluated": 1
+  },
+  "endpoint_evaluation": "not available in ConMeC",
+  "interpretation": "Independent detection coverage remains low; this result does not support a broad-coverage claim."
+}
