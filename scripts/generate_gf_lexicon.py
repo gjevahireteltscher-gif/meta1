@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 from pathlib import Path
 
 
@@ -24,6 +25,42 @@ def possessive(label: str) -> str:
 def read_rows(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as source:
         return list(csv.DictReader(source, delimiter="\t"))
+
+
+def contextual_action_functions(
+    predicates: list[dict[str, str]],
+    action_roles: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    represented = {
+        row["lemma"].casefold().replace("_", " "): row["gf_function"]
+        for row in predicates
+    }
+    represented.update(
+        {
+            "announce": "Announce",
+            "read": "Read",
+            "drink": "Drink",
+            "sign": "Sign",
+        }
+    )
+    contextual_lemmas = sorted(
+        {
+            row["lemma"].casefold().replace("_", " ")
+            for row in action_roles
+            if row["mapping_status"] == "compiled"
+            and row["hole_role"] in {"SubjectHole", "ObjectHole"}
+            and row["requirement"] not in {"", "null"}
+        }
+        - represented.keys()
+    )
+    generated = {
+        lemma: f"CTX_{hashlib.sha256(lemma.encode()).hexdigest()[:16]}"
+        for lemma in contextual_lemmas
+    }
+    return [
+        {"lemma": lemma, "gf_function": function}
+        for lemma, function in sorted((represented | generated).items())
+    ]
 
 
 def generate(
@@ -74,10 +111,8 @@ def generate(
         )
 
     base_predicates = {"Read", "Drink", "Sign"}
-    represented_lemmas = {"announce", "read", "drink", "sign"}
     for row in predicates:
         function = row["gf_function"]
-        represented_lemmas.add(row["lemma"].casefold().replace("_", " "))
         if function in base_predicates:
             continue
         declarations.append(f"    {function} : V2 ;")
@@ -85,19 +120,13 @@ def generate(
             f'    {function} = {row["gf_expression"]} ;'
         )
 
-    contextual_lemmas = sorted(
-        {
-            row["lemma"].casefold().replace("_", " ")
-            for row in action_roles
-            if row["mapping_status"] == "compiled"
-            and row["hole_role"] in {"SubjectHole", "ObjectHole"}
-            and row["requirement"] not in {"", "null"}
-        }
-        - represented_lemmas
-    )
-    for lemma in contextual_lemmas:
-        digest = hashlib.sha256(lemma.encode()).hexdigest()[:16]
-        function = f"CTX_{digest}"
+    action_functions = contextual_action_functions(predicates, action_roles)
+    predicate_functions = {row["gf_function"] for row in predicates} | base_predicates | {"Announce"}
+    for action in action_functions:
+        function = action["gf_function"]
+        if function in predicate_functions:
+            continue
+        lemma = action["lemma"]
         declarations.append(f"    {function} : V2 ;")
         linearizations.append(
             f'    {function} = mkV2 "{gf_string(lemma)}" ;'
@@ -162,17 +191,37 @@ def main() -> None:
         type=Path,
         default=Path("grammar/GeneratedMetonymyEng.gf"),
     )
+    parser.add_argument(
+        "--action-map-output",
+        type=Path,
+        default=Path("data/contextual-gf-actions.json"),
+    )
     arguments = parser.parse_args()
 
+    predicates = read_rows(arguments.predicates) + read_rows(
+        arguments.verbnet_predicates
+    )
+    action_roles = read_rows(arguments.verbnet_action_roles)
     abstract, concrete = generate(
         read_rows(arguments.input),
         read_rows(arguments.semantic_entities),
-        read_rows(arguments.predicates)
-        + read_rows(arguments.verbnet_predicates),
-        read_rows(arguments.verbnet_action_roles),
+        predicates,
+        action_roles,
     )
     arguments.abstract_output.write_text(abstract, encoding="utf-8")
     arguments.concrete_output.write_text(concrete, encoding="utf-8")
+    arguments.action_map_output.write_text(
+        json.dumps(
+            {
+                "schema_version": "contextual-gf-actions-1",
+                "actions": contextual_action_functions(predicates, action_roles),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     print(
         f"generated {arguments.abstract_output} and {arguments.concrete_output}"
     )

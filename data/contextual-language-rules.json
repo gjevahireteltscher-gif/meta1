@@ -19,6 +19,18 @@
     "Producer": ["ProducedBy", "Created"]
   },
   "max_bridge_depth": 1,
+  "relation_lexicalizations": {
+    "author": "Authored",
+    "contain": "Contains",
+    "conduct": "Conducts",
+    "create": "Created",
+    "host": "Hosts",
+    "offer": "Offers",
+    "produce": "Produces",
+    "represent": "Represents",
+    "study": "Conducts",
+    "write": "Authored"
+  },
   "morphology_overrides": {
     "announce": {
       "forms": ["announce", "announced", "announces"],
@@ -50,6 +62,30 @@
       "relation": "Conducts",
       "target_slot": "modifier",
       "provenance": "context-template:programme-in-topic:v1"
+    },
+    {
+      "construction": "ModifyNP+AboutPP",
+      "head_sorts": ["Readable", "CommunicationContent", "Programme", "ResearchProgramme"],
+      "relation": "About",
+      "target_slot": "modifier",
+      "strength": "SelectionalPreference",
+      "provenance": "FrameNet:Topic+construction:head-about-topic:v1"
+    },
+    {
+      "construction": "ModifyNP+WithPP",
+      "head_sorts": ["Agreement", "PoliticalAgreement", "CommercialAgreement"],
+      "relation": "AffiliatedWith",
+      "target_slot": "modifier",
+      "strength": "SelectionalPreference",
+      "provenance": "FrameNet:Partner+construction:agreement-with-party:v1"
+    },
+    {
+      "construction": "ModifyNP+ForPP",
+      "head_sorts": ["Programme", "ResearchProgramme", "CommunicationContent", "Product"],
+      "relation": "About",
+      "target_slot": "modifier",
+      "strength": "SelectionalPreference",
+      "provenance": "FrameNet:Purpose+construction:head-for-beneficiary:v1"
     }
   ],
   "frame_argument_capabilities": [

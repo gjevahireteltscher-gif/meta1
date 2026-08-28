@@ -783,9 +783,23 @@ data PositiveGFTree (Payload : Type) : GFCategory → Type where
   gfInPP :
     PositiveGFTree Payload nounPhrase →
     PositiveGFTree Payload prepositionalPhrase
+  gfAboutPP :
+    PositiveGFTree Payload nounPhrase →
+    PositiveGFTree Payload prepositionalPhrase
+  gfWithPP :
+    PositiveGFTree Payload nounPhrase →
+    PositiveGFTree Payload prepositionalPhrase
+  gfForPP :
+    PositiveGFTree Payload nounPhrase →
+    PositiveGFTree Payload prepositionalPhrase
   gfModifyNP :
     PositiveGFTree Payload nounPhrase →
     PositiveGFTree Payload prepositionalPhrase →
+    PositiveGFTree Payload nounPhrase
+  gfModifyRel :
+    PositiveGFTree Payload nounPhrase →
+    PositiveGFTree Payload transitiveVerb →
+    PositiveGFTree Payload nounPhrase →
     PositiveGFTree Payload nounPhrase
   gfAdjCN :
     PositiveGFTree Payload adjective →
@@ -814,8 +828,18 @@ collectGFConstraints (gfCompl verb object) =
   collectGFConstraints verb ++ collectGFConstraints object
 collectGFConstraints (gfInPP object) =
   collectGFConstraints object
+collectGFConstraints (gfAboutPP object) =
+  collectGFConstraints object
+collectGFConstraints (gfWithPP object) =
+  collectGFConstraints object
+collectGFConstraints (gfForPP object) =
+  collectGFConstraints object
 collectGFConstraints (gfModifyNP head modifier) =
   collectGFConstraints head ++ collectGFConstraints modifier
+collectGFConstraints (gfModifyRel head verb object) =
+  collectGFConstraints head
+    ++ collectGFConstraints verb
+    ++ collectGFConstraints object
 collectGFConstraints (gfAdjCN modifier head) =
   collectGFConstraints modifier ++ collectGFConstraints head
 collectGFConstraints (gfDefNP noun) =
@@ -883,3 +907,37 @@ gfElaborationCertified :
     (elaboratePositiveGF tree)
 gfElaborationCertified tree =
   allConstraintsCertified (elaboratePositiveGF tree)
+
+prependRefinement :
+  {system : PositiveConstraintSystem} →
+  {Γ : Context system} →
+  (constraints : List (Constraint system)) →
+  Refinement system Γ (constraints ++ Γ)
+prependRefinement [] =
+  identityRefinement
+prependRefinement (constraint ∷ constraints) =
+  composeRefinement
+    (prependRefinement constraints)
+    headRefinement
+
+compiledGFRefinementSound :
+  {system : PositiveConstraintSystem} →
+  {category : GFCategory} →
+  {Γ : Context system} →
+  (tree : PositiveGFTree (Constraint system) category) →
+  Refinement
+    system
+    Γ
+    (collectGFConstraints tree ++ Γ)
+compiledGFRefinementSound tree =
+  prependRefinement (collectGFConstraints tree)
+
+compiledGFFiberSound :
+  {system : PositiveConstraintSystem} →
+  {category : GFCategory} →
+  {Γ : Context system} →
+  (tree : PositiveGFTree (Constraint system) category) →
+  Fiber system (collectGFConstraints tree ++ Γ) →
+  Fiber system Γ
+compiledGFFiberSound {system} tree =
+  restrict (compiledGFRefinementSound tree)

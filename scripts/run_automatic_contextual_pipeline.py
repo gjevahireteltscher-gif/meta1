@@ -34,6 +34,36 @@ def encode_constraint(constraint: dict) -> str:
             + "|"
             + constraint["provenance"]
         )
+    if "prefers" in payload:
+        return (
+            prefix
+            + "|prefers|"
+            + payload["prefers"]
+            + "|"
+            + constraint["provenance"]
+        )
+    if "prefers_some" in payload:
+        related = payload["prefers_some"]
+        return (
+            prefix
+            + "|prefers-some|"
+            + related["relation"]
+            + "|"
+            + related["requirement"]
+            + "|"
+            + constraint["provenance"]
+        )
+    if "prefers_relation" in payload:
+        relation = payload["prefers_relation"]
+        return (
+            prefix
+            + "|prefers-relation|"
+            + relation["relation"]
+            + "|"
+            + relation["target"]
+            + "|"
+            + constraint["provenance"]
+        )
     if "requires_some" in payload:
         related = payload["requires_some"]
         return (
@@ -65,6 +95,20 @@ def main() -> None:
     parser.add_argument("--source")
     parser.add_argument("--contract-target")
     parser.add_argument("--rules", default="data/contextual-language-rules.json")
+    parser.add_argument(
+        "--gf-actions", default="data/contextual-gf-actions.json"
+    )
+    parser.add_argument(
+        "--ablation",
+        choices=[
+            "full",
+            "no-wordnet",
+            "no-framenet",
+            "no-existential",
+            "no-formal-filtering",
+        ],
+        default="full",
+    )
     args = parser.parse_args()
     command = [
         "python3",
@@ -80,6 +124,8 @@ def main() -> None:
         command.extend(["--source", args.source])
     if args.contract_target:
         command.extend(["--target-surface", args.contract_target])
+    if args.ablation == "no-framenet":
+        command.append("--disable-framenet")
     proposal = json.loads(subprocess.run(command, check=True, text=True, capture_output=True).stdout)
     if proposal["status"] != "ready":
         print(json.dumps(proposal, ensure_ascii=False, indent=2, sort_keys=True))
@@ -108,15 +154,30 @@ def main() -> None:
     language_rules = json.loads(Path(args.rules).read_text(encoding="utf-8"))
     wordnet_rules_path = Path("data/wordnet-context-rules.json")
     wordnet_rules = json.loads(wordnet_rules_path.read_text(encoding="utf-8"))
+    if args.ablation == "no-wordnet":
+        wordnet_rules = {"lexical_sorts": {}, "adjective_sorts": {}}
     aliases = {}
     with (args.snapshot / "aliases.jsonl").open(encoding="utf-8") as source:
         for line in source:
             row = json.loads(line)
             aliases.setdefault(row["alias"].casefold(), []).append(row["id"])
+    action_map = json.loads(
+        Path(args.gf_actions).read_text(encoding="utf-8")
+    )
+    gf_actions = {
+        action["gf_function"]: action["lemma"]
+        for action in action_map["actions"]
+    }
     try:
         proposal["constraints"].extend(
             compile_gf_constraints(
-                proposal, trees[0], language_rules, wordnet_rules, aliases
+                proposal,
+                trees[0],
+                language_rules,
+                wordnet_rules,
+                aliases,
+                enable_existential=args.ablation != "no-existential",
+                gf_actions=gf_actions,
             )
         )
     except ValueError as error:
@@ -181,6 +242,11 @@ def main() -> None:
                 str(args.snapshot),
                 "--scenarios",
                 str(scenarios),
+                *(
+                    ["--no-formal-filtering"]
+                    if args.ablation == "no-formal-filtering"
+                    else []
+                ),
             ],
             text=True,
         )

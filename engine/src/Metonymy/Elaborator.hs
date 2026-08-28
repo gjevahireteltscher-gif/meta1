@@ -125,7 +125,11 @@ arity "Negate" = Just 1
 arity "Quantify" = Just 2
 arity "NegPred" = Just 2
 arity "InPP" = Just 1
+arity "AboutPP" = Just 1
+arity "WithPP" = Just 1
+arity "ForPP" = Just 1
 arity "ModifyNP" = Just 2
+arity "ModifyRel" = Just 3
 arity "EveryCN" = Just 2
 arity _ = Nothing
 
@@ -225,7 +229,11 @@ supportedConstructions =
   , "Quantify"
   , "NegPred"
   , "InPP"
+  , "AboutPP"
+  , "WithPP"
+  , "ForPP"
   , "ModifyNP"
+  , "ModifyRel"
   , "EveryCN"
   ]
 

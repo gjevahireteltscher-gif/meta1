@@ -32,7 +32,11 @@ ARITIES = {
     "NegPred": 2,
     "Compl": 2,
     "InPP": 1,
+    "AboutPP": 1,
+    "WithPP": 1,
+    "ForPP": 1,
     "ModifyNP": 2,
+    "ModifyRel": 3,
     "EveryCN": 2,
     "OpenAdjDefCN": 3,
     "OpenAdjIndefCN": 3,
@@ -369,9 +373,20 @@ def compile_gf_constraints(
     language_rules: dict,
     wordnet_rules: dict,
     aliases: dict[str, list[str]],
+    *,
+    enable_existential: bool = True,
+    gf_actions: dict[str, str] | None = None,
 ) -> list[dict]:
     root = parse_gf_tree(tree)
     constraints = []
+    if not wordnet_rules.get("lexical_sorts"):
+        return constraints
+    action_payload = proposal["constraints"][0]["payload"]
+    action_requirement = action_payload.get(
+        "requires", action_payload.get("prefers")
+    )
+    action_is_preference = "prefers" in action_payload
+    gf_actions = gf_actions or {}
 
     def first_node(node: GFNode | str, constructor: str) -> GFNode | None:
         if not isinstance(node, GFNode):
@@ -385,7 +400,10 @@ def compile_gf_constraints(
         return None
 
     def lexical_head(node: GFNode | str) -> GFNode | str:
-        if isinstance(node, GFNode) and node.constructor == "ModifyNP":
+        if isinstance(node, GFNode) and node.constructor in {
+            "ModifyNP",
+            "ModifyRel",
+        }:
             return lexical_head(node.arguments[0])
         return node
 
@@ -434,7 +452,7 @@ def compile_gf_constraints(
                     )
                 ),
                 None,
-            )
+            ) if enable_existential else None
             semantic_lemma = " ".join([proposal["action"], head_lemma])
             provenance_parts = [
                 head_rule["provenance"],
@@ -442,6 +460,8 @@ def compile_gf_constraints(
             ]
             if frame_names:
                 provenance_parts.append("FrameNet:" + ",".join(frame_names))
+            for projection in proposal.get("frame_role_projections", []):
+                provenance_parts.append(projection["provenance"])
             if capability:
                 payload = {
                     "requires_some": {
@@ -452,7 +472,11 @@ def compile_gf_constraints(
                 provenance_parts.append(capability["provenance"])
             else:
                 payload = {
-                    "requires": proposal["constraints"][0]["payload"]["requires"]
+                    (
+                        "prefers"
+                        if action_is_preference
+                        else "requires"
+                    ): action_requirement
                 }
                 provenance_parts.append("frame-argument-compatibility:v1")
             constraints.append(
@@ -467,6 +491,56 @@ def compile_gf_constraints(
                     "provenance": "+".join(provenance_parts),
                 }
             )
+
+        if (
+            proposal["role"] == "ObjectHole"
+            and isinstance(object_node, GFNode)
+            and object_node.constructor == "ModifyRel"
+        ):
+            _, relative_verb, relative_object = object_node.arguments
+            relative_lemma = (
+                gf_actions.get(relative_verb.constructor)
+                if isinstance(relative_verb, GFNode)
+                else None
+            )
+            relation_name = language_rules.get(
+                "relation_lexicalizations", {}
+            ).get(relative_lemma or "")
+            object_lemma = _proper_lemma(relative_object)
+            target_qids = (
+                sorted(set(aliases.get(object_lemma.casefold(), [])))
+                if object_lemma
+                else []
+            )
+            if relative_lemma and relation_name and len(target_qids) == 1:
+                constraints.append(
+                    {
+                        "origin": _cumulative_origin(
+                            proposal,
+                            object_lemma,
+                            "FrameRelativeClause",
+                            " ".join(
+                                [
+                                    proposal["action"],
+                                    head_lemma or "target",
+                                    "that",
+                                    relative_lemma,
+                                    object_lemma,
+                                ]
+                            ),
+                        ),
+                        "payload": {
+                            "requires_relation": {
+                                "relation": relation_name,
+                                "target": target_qids[0],
+                            }
+                        },
+                        "provenance": (
+                            f"FrameNet:Relative_clause+"
+                            f"relation-lexicalization:{relative_lemma}"
+                        ),
+                    }
+                )
 
     def walk(node: GFNode | str) -> None:
         if not isinstance(node, GFNode):
@@ -536,9 +610,15 @@ def compile_gf_constraints(
         if node.constructor == "ModifyNP" and len(node.arguments) == 2:
             head, modifier = node.arguments
             walk(head)
+            pp_constructions = {
+                "InPP": ("ModifyNP+InPP", "in"),
+                "AboutPP": ("ModifyNP+AboutPP", "about"),
+                "WithPP": ("ModifyNP+WithPP", "with"),
+                "ForPP": ("ModifyNP+ForPP", "for"),
+            }
             if (
                 isinstance(modifier, GFNode)
-                and modifier.constructor == "InPP"
+                and modifier.constructor in pp_constructions
                 and modifier.arguments
             ):
                 head_lemma = _noun_lemma(head)
@@ -550,11 +630,17 @@ def compile_gf_constraints(
                 )
                 if head_rule and target_lemma:
                     head_sorts = _sorts(head_rule["requirement"])
+                    construction, preposition = pp_constructions[
+                        modifier.constructor
+                    ]
+                    accepted_constructions = {construction}
+                    if construction == "ModifyNP+InPP":
+                        accepted_constructions.add("ModIn")
                     template = next(
                         (
                             rule
                             for rule in language_rules.get("context_templates", [])
-                            if rule["construction"] in {"ModIn", "ModifyNP+InPP"}
+                            if rule["construction"] in accepted_constructions
                             and head_sorts.intersection(rule["head_sorts"])
                         ),
                         None,
@@ -575,13 +661,18 @@ def compile_gf_constraints(
                                         [
                                             proposal["action"],
                                             head_lemma,
-                                            "in",
+                                            preposition,
                                             target_lemma,
                                         ]
                                     ),
                                 ),
                                 "payload": {
-                                    "requires_relation": {
+                                    (
+                                        "prefers_relation"
+                                        if template.get("strength")
+                                        == "SelectionalPreference"
+                                        else "requires_relation"
+                                    ): {
                                         "relation": template["relation"],
                                         "target": qids[0],
                                     }

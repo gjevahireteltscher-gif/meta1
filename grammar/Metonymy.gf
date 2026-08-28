@@ -13,7 +13,11 @@ abstract Metonymy = {
     NegPred : NP -> VP -> S ;
     Compl : V2 -> NP -> VP ;
     InPP : NP -> PP ;
+    AboutPP : NP -> PP ;
+    WithPP : NP -> PP ;
+    ForPP : NP -> PP ;
     ModifyNP : NP -> PP -> NP ;
+    ModifyRel : NP -> V2 -> NP -> NP ;
     EveryCN : String -> String -> NP ;
     OpenAdjDefCN : String -> String -> String -> NP ;
     OpenAdjIndefCN : String -> String -> String -> NP ;

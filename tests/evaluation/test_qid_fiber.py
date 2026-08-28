@@ -122,6 +122,12 @@ class QidFiberTests(unittest.TestCase):
             cwd=ROOT,
         )
         self.assertIn("action=declare role=SubjectHole", completed.stdout)
+        self.assertIn(
+            "constraint=Prefers (AnyOf [HasSort Animate,HasSort Organization])"
+            "@declare",
+            completed.stdout,
+        )
+        self.assertIn("preferred=[Q1049470,Q2004561]", completed.stdout)
         self.assertIn("survivors=[Q1049470,Q2004561]", completed.stdout)
         self.assertIn(
             "constraint=RequiresSome Conducts (HasSort ScientificDiscipline)"
@@ -305,6 +311,126 @@ class QidFiberTests(unittest.TestCase):
         self.assertEqual(
             constraints[1]["origin"]["lemma"],
             "announce program in physics",
+        )
+
+    def test_positive_pp_constructions_compile_from_sort_templates(self):
+        language_rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wordnet_rules = json.loads(
+            (ROOT / "data/wordnet-context-rules.json").read_text(encoding="utf-8")
+        )
+        cases = [
+            ("book", "AboutPP", "physics", "About"),
+            ("agreement", "WithPP", "Chanel", "AffiliatedWith"),
+            ("program", "ForPP", "physics", "About"),
+        ]
+        for head, pp_constructor, target, relation in cases:
+            sentence = f"Paris signed a {head} {pp_constructor[:-2].lower()} {target}"
+            proposal = {
+                "action": "sign",
+                "role": "SubjectHole",
+                "sentence": sentence,
+                "frames": [{"frame": "Sign_agreement"}],
+                "frame_role_projections": [],
+                "provenance": {"action": "test:VerbNet:sign"},
+                "constraints": [
+                    {
+                        "origin": {
+                            "constructor": "Verb",
+                            "lemma": "sign",
+                            "surface": "signed",
+                            "start": 6,
+                            "end": 12,
+                        },
+                        "payload": {"requires": "HasSort Agent"},
+                        "provenance": "test:VerbNet:sign",
+                    }
+                ],
+            }
+            constraints = compile_gf_constraints(
+                proposal,
+                (
+                    'Pred (OpenPN "Paris") '
+                    f'(Compl Sign (ModifyNP (OpenIndefCN "{head}" "?5") '
+                    f'({pp_constructor} (OpenPN "{target}"))))'
+                ),
+                language_rules,
+                wordnet_rules,
+                {
+                    "physics": ["Q413"],
+                    "chanel": ["Q218115"],
+                },
+            )
+            self.assertEqual(
+                constraints[-1]["payload"]["prefers_relation"],
+                {
+                    "relation": relation,
+                    "target": "Q218115" if target == "Chanel" else "Q413",
+                },
+            )
+
+    def test_relative_clause_compiles_relation_lexicalization(self):
+        language_rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wordnet_rules = json.loads(
+            (ROOT / "data/wordnet-context-rules.json").read_text(encoding="utf-8")
+        )
+        proposal = {
+            "action": "examine",
+            "role": "ObjectHole",
+            "sentence": "Anna examines an institution that conducts physics",
+            "frames": [],
+            "frame_role_projections": [],
+            "provenance": {"action": "test:VerbNet:examine"},
+            "constraints": [
+                {
+                    "origin": {
+                        "constructor": "Verb",
+                        "lemma": "examine",
+                        "surface": "examines",
+                        "start": 5,
+                        "end": 13,
+                    },
+                    "payload": {"prefers": "HasSort Organization"},
+                    "provenance": "test:VerbNet:examine",
+                }
+            ],
+            "lexical_evidence": [
+                {
+                    "surface": "institution",
+                    "start": 17,
+                    "end": 28,
+                    "requirement": "HasSort Institution",
+                    "provenance": "test:WordNet:institution",
+                }
+            ],
+        }
+        constraints = compile_gf_constraints(
+            proposal,
+            (
+                'Pred (OpenPN "Anna") '
+                '(Compl Examine '
+                '(ModifyRel (OpenIndefCN "institution" "?5") '
+                'Conduct (OpenPN "physics")))'
+            ),
+            language_rules,
+            wordnet_rules,
+            {"physics": ["Q413"]},
+            gf_actions={"Conduct": "conduct"},
+        )
+        self.assertEqual(
+            constraints[-1]["payload"]["requires_relation"],
+            {"relation": "Conducts", "target": "Q413"},
+        )
+        self.assertEqual(
+            constraints[-1]["origin"]["lemma"],
+            "examine institution that conduct physics",
         )
 
     def test_unique_and_ambiguous_contextual_contraction(self):
