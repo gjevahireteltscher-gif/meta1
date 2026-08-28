@@ -643,7 +643,14 @@ def compile_gf_constraints(
                 and modifier.constructor in pp_constructions
                 and modifier.arguments
             ):
-                head_lemma = _noun_lemma(head)
+                resolved_head = lexical_head(head)
+                head_lemma = _noun_lemma(resolved_head)
+                if (
+                    not head_lemma
+                    and isinstance(resolved_head, GFNode)
+                    and resolved_head.constructor in gf_nouns
+                ):
+                    head_lemma = gf_nouns[resolved_head.constructor]
                 target_lemma = _proper_lemma(modifier.arguments[0])
                 head_rule = (
                     wordnet_rules.get("lexical_sorts", {}).get(head_lemma.casefold())
