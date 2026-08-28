@@ -18,6 +18,7 @@ RUN apt-get update \
        git \
        make \
        python3 \
+       ripgrep \
        sudo \
     && rm -rf /var/lib/apt/lists/*
 
