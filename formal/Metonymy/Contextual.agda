@@ -70,9 +70,9 @@ constraintHolds kb candidate constraint with constraintPayload constraint
   where
   matches : RelationFact → Bool
   matches fact =
-    stringEqual relation (factRelation fact)
-      and stringEqual candidate (factSource fact)
-      and satisfiesRequirement kb (factTarget fact) requirement
+    stringEqual relation (RelationFact.factRelation fact)
+      and stringEqual candidate (RelationFact.factSource fact)
+      and satisfiesRequirement kb (RelationFact.factTarget fact) requirement
 
 constraintsHold :
   KnowledgeBase →
