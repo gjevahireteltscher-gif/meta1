@@ -13,9 +13,9 @@ concrete MetonymyEng of Metonymy =
     NegPred np vp = mkS negativePol (mkCl np vp) ;
     Compl verb object = mkVP verb object ;
     InPP np = SyntaxEng.mkAdv in_Prep np ;
-    AboutPP np = SyntaxEng.mkAdv about_Prep np ;
-    WithPP np = SyntaxEng.mkAdv with_Prep np ;
-    ForPP np = SyntaxEng.mkAdv for_Prep np ;
+    AboutPP np = SyntaxEng.mkAdv (mkPrep "about") np ;
+    WithPP np = SyntaxEng.mkAdv (mkPrep "with") np ;
+    ForPP np = SyntaxEng.mkAdv (mkPrep "for") np ;
     ModifyNP np pp = mkNP np pp ;
     ModifyRel np verb object =
       mkNP np (mkRS (mkRCl which_RP (mkVP verb object))) ;
