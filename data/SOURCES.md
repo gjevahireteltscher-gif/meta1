@@ -47,6 +47,36 @@ Native `fn_mapping` values are metadata from VerbNet; no FrameNet frame
 element semantics are claimed without a separately licensed FrameNet
 archive.
 
+## FrameNet 1.7
+
+`scripts/import_framenet_context.py` consumes the official, user-supplied
+FrameNet 1.7 XML distribution. It imports frame definitions, frame elements,
+lexical units, explicit valence units, and exemplar-derived FE/GF/PT valence
+patterns. The deterministic manifest binds outputs to the complete input XML
+tree hash.
+
+FrameNet XML is not committed or downloaded automatically because obtaining
+the official release requires accepting its upstream terms. The importer
+marks its output `redistributed: false`. Source and release information:
+<https://berkeleyfn.framenetbr.ufjf.br/framenet_data>.
+
+`framenet-role-capabilities.json` is separately reproducible from the pinned
+VerbNet Action×Role and native FrameNet-link metadata. It contains 32
+evidence-ranked frame/role compatibility projections. These projections
+remain `SelectionalPreference`; they are not entity-level capability facts.
+The stronger `frame_argument_capabilities` entries in
+`contextual-language-rules.json` are audited, versioned projections whose
+witnesses must still exist in the active Wikidata/OpenAlex snapshot.
+
+## Independent ConMeC-300 selection
+
+`evaluation/independent-conmec-300/selection-manifest.json` freezes a
+stratified 300-instance selection from independently human-annotated ConMeC.
+Only IDs and content hashes are committed; corpus text is materialized from
+the pinned source under its Apache-2.0/Wikipedia CC-BY-SA terms. The selection
+is independent for detection and bridge-family labels, but ConMeC does not
+provide explicit endpoint QIDs.
+
 ## Endpoint linker snapshot
 
 `entity-link-snapshot.tsv` is a small, independently maintained CC0

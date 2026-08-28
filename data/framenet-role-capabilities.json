@@ -1,0 +1,655 @@
+{
+  "projection_count": 32,
+  "projections": [
+    {
+      "action_senses": 14,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 196,
+      "example_lemmas": [
+        "bark",
+        "crow",
+        "cry",
+        "hiss",
+        "murmur",
+        "purr",
+        "roar",
+        "scream",
+        "snarl",
+        "thunder",
+        "trumpet",
+        "wail"
+      ],
+      "frame": "Communication_noise",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Communication_noise:SubjectHole:480f0d7567f96db7",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 54,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 162,
+      "example_lemmas": [
+        "aggravate",
+        "alarm",
+        "amaze",
+        "anger",
+        "arouse",
+        "baffle",
+        "bewitch",
+        "boggle",
+        "calm",
+        "charm",
+        "cheer",
+        "comfort"
+      ],
+      "frame": "Experiencer_obj",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Experiencer_obj:ObjectHole:7438069c6e191d03",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 7,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 91,
+      "example_lemmas": [
+        "babble",
+        "bluster",
+        "chant",
+        "chatter",
+        "mumble",
+        "mutter",
+        "shout"
+      ],
+      "frame": "Communication_manner",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Communication_manner:SubjectHole:5a2ccc961306c621",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 14,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 84,
+      "example_lemmas": [
+        "bark",
+        "crow",
+        "cry",
+        "hiss",
+        "murmur",
+        "purr",
+        "roar",
+        "scream",
+        "snarl",
+        "thunder",
+        "trumpet",
+        "wail"
+      ],
+      "frame": "Communication_noise",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Communication_noise:ObjectHole:480f0d7567f96db7",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 14,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 68,
+      "example_lemmas": [
+        "back",
+        "dance",
+        "hasten",
+        "hobble",
+        "hurry",
+        "rush",
+        "shuffle",
+        "skip",
+        "sneak",
+        "trip",
+        "trot"
+      ],
+      "frame": "Self_motion",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Self_motion:SubjectHole:294d6168b9d655a1",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 21,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 65,
+      "example_lemmas": [
+        "bat",
+        "blink",
+        "bob",
+        "cock",
+        "cross",
+        "flap",
+        "flex",
+        "grind",
+        "hang",
+        "jerk",
+        "lift",
+        "open"
+      ],
+      "frame": "Body_movement",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Body_movement:SubjectHole:b3cdd91d5eb828eb",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 16,
+      "candidate_requirement": "Not (HasSort Animate)",
+      "evidence_count": 64,
+      "example_lemmas": [
+        "babble",
+        "blare",
+        "boom",
+        "chatter",
+        "gurgle",
+        "howl",
+        "hum",
+        "purr",
+        "rattle",
+        "rustle",
+        "scream",
+        "sound"
+      ],
+      "frame": "Make_noise",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Make_noise:ObjectHole:8141f0be16f24863",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 11,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 60,
+      "example_lemmas": [
+        "claw",
+        "kick",
+        "poison",
+        "punch",
+        "slice",
+        "stab",
+        "stone",
+        "strike",
+        "torture"
+      ],
+      "frame": "Cause_harm",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Cause_harm:SubjectHole:ac64b0e8f8a30cea",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 55,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 56,
+      "example_lemmas": [
+        "aggravate",
+        "alarm",
+        "amaze",
+        "anger",
+        "arouse",
+        "baffle",
+        "bewitch",
+        "boggle",
+        "calm",
+        "charm",
+        "cheer",
+        "comfort"
+      ],
+      "frame": "Experiencer_obj",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Experiencer_obj:SubjectHole:dc392863e1c2858c",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 4,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 56,
+      "example_lemmas": [
+        "blare",
+        "boom",
+        "gurgle",
+        "whistle"
+      ],
+      "frame": "Make_noise",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Make_noise:SubjectHole:d2d0542a08897f2a",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 17,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 56,
+      "example_lemmas": [
+        "acknowledge",
+        "announce",
+        "caution",
+        "claim",
+        "comment",
+        "declare",
+        "mention",
+        "preach",
+        "proclaim",
+        "propose",
+        "recount",
+        "relate"
+      ],
+      "frame": "Statement",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Statement:SubjectHole:9a454ae6489bec4d",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 3,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 55,
+      "example_lemmas": [
+        "ask",
+        "inquire",
+        "question"
+      ],
+      "frame": "Questioning",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Questioning:SubjectHole:a53b692aa1a8cefe",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 19,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 55,
+      "example_lemmas": [
+        "analyse",
+        "check",
+        "go",
+        "look",
+        "monitor",
+        "probe",
+        "scan",
+        "scour",
+        "scrutinize",
+        "search",
+        "study",
+        "survey"
+      ],
+      "frame": "Scrutiny",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Scrutiny:SubjectHole:4a6fe83315e0ac41",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 24,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 49,
+      "example_lemmas": [
+        "deposit",
+        "drape",
+        "dust",
+        "hang",
+        "heap",
+        "immerse",
+        "implant",
+        "inject",
+        "insert",
+        "lay",
+        "lean",
+        "lodge"
+      ],
+      "frame": "Placing",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Placing:SubjectHole:201d4e61f4d69ea2",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 6,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 43,
+      "example_lemmas": [
+        "admit",
+        "confess",
+        "disclose",
+        "reveal"
+      ],
+      "frame": "Reveal_secret",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Reveal_secret:SubjectHole:86af31549c781dde",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 4,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 41,
+      "example_lemmas": [
+        "bitch",
+        "complain",
+        "grumble"
+      ],
+      "frame": "Complaining",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Complaining:SubjectHole:0311d2174ca19c2e",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 10,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 38,
+      "example_lemmas": [
+        "boil",
+        "broil",
+        "brown",
+        "cook",
+        "fry",
+        "grill",
+        "roast",
+        "scald",
+        "simmer"
+      ],
+      "frame": "Apply_heat",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Apply_heat:SubjectHole:01e7f4a0a008b74a",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 9,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 38,
+      "example_lemmas": [
+        "ascertain",
+        "conclude",
+        "deduce",
+        "guess",
+        "infer",
+        "realize"
+      ],
+      "frame": "Coming_to_believe",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Coming_to_believe:SubjectHole:00469f890af9df44",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 7,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 38,
+      "example_lemmas": [
+        "babble",
+        "bluster",
+        "chant",
+        "chatter",
+        "mumble",
+        "mutter",
+        "shout"
+      ],
+      "frame": "Communication_manner",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Communication_manner:ObjectHole:5a2ccc961306c621",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 22,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 38,
+      "example_lemmas": [
+        "cover",
+        "embellish",
+        "fill",
+        "flood",
+        "glaze",
+        "hang",
+        "load",
+        "pave",
+        "plant",
+        "plaster",
+        "pump",
+        "seed"
+      ],
+      "frame": "Filling",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Filling:SubjectHole:55306e1678e71635",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 9,
+      "candidate_requirement": "Not (HasSort Animate)",
+      "evidence_count": 36,
+      "example_lemmas": [
+        "buzz",
+        "clack",
+        "clump",
+        "crackle",
+        "crash",
+        "crunch",
+        "squelch",
+        "thud",
+        "whine"
+      ],
+      "frame": "Motion_noise",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Motion_noise:ObjectHole:09068152f01b8e1e",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 3,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 33,
+      "example_lemmas": [
+        "communicate",
+        "correspond"
+      ],
+      "frame": "Communication",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Communication:SubjectHole:7c1d81ed1886f8cf",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 4,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 32,
+      "example_lemmas": [
+        "collaborate",
+        "conspire",
+        "cooperate",
+        "partner"
+      ],
+      "frame": "Collaboration",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Collaboration:SubjectHole:877dcdb13fc37e61",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 16,
+      "candidate_requirement": "Not (HasSort Animate)",
+      "evidence_count": 32,
+      "example_lemmas": [
+        "babble",
+        "blare",
+        "boom",
+        "chatter",
+        "gurgle",
+        "howl",
+        "hum",
+        "purr",
+        "rattle",
+        "rustle",
+        "scream",
+        "sound"
+      ],
+      "frame": "Make_noise",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Make_noise:SubjectHole:8141f0be16f24863",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 3,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 31,
+      "example_lemmas": [
+        "ask",
+        "inquire",
+        "question"
+      ],
+      "frame": "Questioning",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Questioning:ObjectHole:a53b692aa1a8cefe",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 9,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 30,
+      "example_lemmas": [
+        "classify",
+        "consider",
+        "deem",
+        "interpret",
+        "peg",
+        "perceive",
+        "render",
+        "view"
+      ],
+      "frame": "Categorization",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Categorization:SubjectHole:2dcad8a7e18f8997",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 5,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 30,
+      "example_lemmas": [
+        "admire",
+        "exalt",
+        "prize",
+        "respect",
+        "value"
+      ],
+      "frame": "Judgment",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Judgment:SubjectHole:18acf88e663191ac",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 12,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 28,
+      "example_lemmas": [
+        "accompany",
+        "chase",
+        "escort",
+        "follow",
+        "guide",
+        "lead",
+        "shadow",
+        "stalk",
+        "tail",
+        "trail",
+        "usher"
+      ],
+      "frame": "Cotheme",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Cotheme:SubjectHole:04719484eb202f0a",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 3,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 27,
+      "example_lemmas": [
+        "joke",
+        "speak",
+        "talk"
+      ],
+      "frame": "Chatting",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Chatting:SubjectHole:fb4900bd721dc7fc",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 10,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 25,
+      "example_lemmas": [
+        "assassinate",
+        "crucify",
+        "dispatch",
+        "eliminate",
+        "kill",
+        "liquidate",
+        "murder",
+        "slaughter",
+        "smother",
+        "suffocate"
+      ],
+      "frame": "Killing",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Killing:ObjectHole:fb73c23161819518",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 9,
+      "candidate_requirement": "HasSort Animate",
+      "evidence_count": 24,
+      "example_lemmas": [
+        "assassinate",
+        "crucify",
+        "dispatch",
+        "eliminate",
+        "liquidate",
+        "murder",
+        "slaughter",
+        "smother",
+        "suffocate"
+      ],
+      "frame": "Killing",
+      "hole_role": "SubjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Killing:SubjectHole:6964fab7fececbe4",
+      "strength": "SelectionalPreference"
+    },
+    {
+      "action_senses": 4,
+      "candidate_requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "evidence_count": 24,
+      "example_lemmas": [
+        "blare",
+        "boom",
+        "gurgle",
+        "whistle"
+      ],
+      "frame": "Make_noise",
+      "hole_role": "ObjectHole",
+      "mode": "role-compatibility",
+      "provenance": "SemLink:VerbNet-3.4×FrameNet-1.7:Make_noise:ObjectHole:d2d0542a08897f2a",
+      "strength": "SelectionalPreference"
+    }
+  ],
+  "schema_version": "framenet-role-capabilities-1",
+  "selection_policy": "top projections by executable Action×Role evidence count; deterministic lexical tie-break",
+  "strength_policy": "all imported projections remain SelectionalPreference"
+}
