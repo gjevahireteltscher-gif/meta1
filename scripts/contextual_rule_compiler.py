@@ -37,6 +37,9 @@ ARITIES = {
     "ForPP": 1,
     "ModifyNP": 2,
     "ModifyRel": 3,
+    "IndefCN": 1,
+    "DefCN": 1,
+    "ModifyRelCN": 3,
     "EveryCN": 2,
     "OpenAdjDefCN": 3,
     "OpenAdjIndefCN": 3,
@@ -376,6 +379,7 @@ def compile_gf_constraints(
     *,
     enable_existential: bool = True,
     gf_actions: dict[str, str] | None = None,
+    gf_nouns: dict[str, str] | None = None,
 ) -> list[dict]:
     root = parse_gf_tree(tree)
     constraints = []
@@ -387,6 +391,7 @@ def compile_gf_constraints(
     )
     action_is_preference = "prefers" in action_payload
     gf_actions = gf_actions or {}
+    gf_nouns = gf_nouns or {}
 
     def first_node(node: GFNode | str, constructor: str) -> GFNode | None:
         if not isinstance(node, GFNode):
@@ -403,6 +408,9 @@ def compile_gf_constraints(
         if isinstance(node, GFNode) and node.constructor in {
             "ModifyNP",
             "ModifyRel",
+            "ModifyRelCN",
+            "IndefCN",
+            "DefCN",
         }:
             return lexical_head(node.arguments[0])
         return node
@@ -412,6 +420,12 @@ def compile_gf_constraints(
         object_node = complement.arguments[1]
         head = lexical_head(object_node)
         head_lemma = _noun_lemma(head)
+        if (
+            not head_lemma
+            and isinstance(head, GFNode)
+            and head.constructor in gf_nouns
+        ):
+            head_lemma = gf_nouns[head.constructor]
         head_rule = (
             wordnet_rules.get("lexical_sorts", {}).get(head_lemma.casefold())
             if head_lemma
@@ -492,12 +506,18 @@ def compile_gf_constraints(
                 }
             )
 
+        relative_node = object_node
+        if (
+            isinstance(relative_node, GFNode)
+            and relative_node.constructor in {"IndefCN", "DefCN"}
+        ):
+            relative_node = relative_node.arguments[0]
         if (
             proposal.get("role") == "ObjectHole"
-            and isinstance(object_node, GFNode)
-            and object_node.constructor == "ModifyRel"
+            and isinstance(relative_node, GFNode)
+            and relative_node.constructor in {"ModifyRel", "ModifyRelCN"}
         ):
-            _, relative_verb, relative_object = object_node.arguments
+            _, relative_verb, relative_object = relative_node.arguments
             relative_lemma = (
                 gf_actions.get(relative_verb.constructor)
                 if isinstance(relative_verb, GFNode)

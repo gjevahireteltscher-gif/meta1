@@ -801,6 +801,11 @@ data PositiveGFTree (Payload : Type) : GFCategory → Type where
     PositiveGFTree Payload transitiveVerb →
     PositiveGFTree Payload nounPhrase →
     PositiveGFTree Payload nounPhrase
+  gfModifyRelCN :
+    PositiveGFTree Payload commonNoun →
+    PositiveGFTree Payload transitiveVerb →
+    PositiveGFTree Payload nounPhrase →
+    PositiveGFTree Payload commonNoun
   gfAdjCN :
     PositiveGFTree Payload adjective →
     PositiveGFTree Payload commonNoun →
@@ -837,6 +842,10 @@ collectGFConstraints (gfForPP object) =
 collectGFConstraints (gfModifyNP head modifier) =
   collectGFConstraints head ++ collectGFConstraints modifier
 collectGFConstraints (gfModifyRel head verb object) =
+  collectGFConstraints head
+    ++ collectGFConstraints verb
+    ++ collectGFConstraints object
+collectGFConstraints (gfModifyRelCN head verb object) =
   collectGFConstraints head
     ++ collectGFConstraints verb
     ++ collectGFConstraints object

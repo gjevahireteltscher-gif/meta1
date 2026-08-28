@@ -7,6 +7,7 @@ abstract Metonymy = {
     VP ;
     V2 ;
     PP ;
+    CN ;
 
   fun
     Pred : NP -> VP -> S ;
@@ -18,6 +19,9 @@ abstract Metonymy = {
     ForPP : NP -> PP ;
     ModifyNP : NP -> PP -> NP ;
     ModifyRel : NP -> V2 -> NP -> NP ;
+    IndefCN : CN -> NP ;
+    DefCN : CN -> NP ;
+    ModifyRelCN : CN -> V2 -> NP -> CN ;
     EveryCN : String -> String -> NP ;
     OpenAdjDefCN : String -> String -> String -> NP ;
     OpenAdjIndefCN : String -> String -> String -> NP ;

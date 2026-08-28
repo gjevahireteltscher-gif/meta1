@@ -130,6 +130,9 @@ arity "WithPP" = Just 1
 arity "ForPP" = Just 1
 arity "ModifyNP" = Just 2
 arity "ModifyRel" = Just 3
+arity "IndefCN" = Just 1
+arity "DefCN" = Just 1
+arity "ModifyRelCN" = Just 3
 arity "EveryCN" = Just 2
 arity _ = Nothing
 
@@ -234,6 +237,9 @@ supportedConstructions =
   , "ForPP"
   , "ModifyNP"
   , "ModifyRel"
+  , "IndefCN"
+  , "DefCN"
+  , "ModifyRelCN"
   , "EveryCN"
   ]
 

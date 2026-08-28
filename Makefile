@@ -89,7 +89,8 @@ generated-check:
 	git diff --exit-code -- \
 		grammar/GeneratedMetonymy.gf \
 		grammar/GeneratedMetonymyEng.gf \
-		data/contextual-gf-actions.json
+		data/contextual-gf-actions.json \
+		data/contextual-gf-nouns.json
 
 framenet-generated-check:
 	python3 scripts/generate_framenet_capabilities.py

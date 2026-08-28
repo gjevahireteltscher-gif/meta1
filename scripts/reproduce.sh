@@ -36,6 +36,7 @@ git diff --exit-code -- \
   grammar/GeneratedMetonymy.gf \
   grammar/GeneratedMetonymyEng.gf \
   data/contextual-gf-actions.json \
+  data/contextual-gf-nouns.json \
   data/framenet-role-capabilities.json
 
 printf '%s\n' "publication artifact verified"

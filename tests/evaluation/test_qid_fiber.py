@@ -433,6 +433,21 @@ class QidFiberTests(unittest.TestCase):
             "examine institution that conduct physics",
         )
 
+    def test_wordnet_cn_relative_clause_parses_in_gf(self):
+        completed = subprocess.run(
+            [
+                str(ROOT / "build/metonymy"),
+                "parse",
+                "Anna examines an institution that conducts physics",
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+            cwd=ROOT,
+        )
+        self.assertIn("ModifyRelCN", completed.stdout)
+        self.assertIn("WN_822fe3679c9dbb1c", completed.stdout)
+
     def test_unique_and_ambiguous_contextual_contraction(self):
         engine = ROOT / "build" / "metonymy"
         if not engine.exists():

@@ -99,6 +99,9 @@ def main() -> None:
         "--gf-actions", default="data/contextual-gf-actions.json"
     )
     parser.add_argument(
+        "--gf-nouns", default="data/contextual-gf-nouns.json"
+    )
+    parser.add_argument(
         "--ablation",
         choices=[
             "full",
@@ -168,6 +171,13 @@ def main() -> None:
         action["gf_function"]: action["lemma"]
         for action in action_map["actions"]
     }
+    noun_map = json.loads(
+        Path(args.gf_nouns).read_text(encoding="utf-8")
+    )
+    gf_nouns = {
+        noun["gf_function"]: noun["lemma"]
+        for noun in noun_map["nouns"]
+    }
     try:
         proposal["constraints"].extend(
             compile_gf_constraints(
@@ -178,6 +188,7 @@ def main() -> None:
                 aliases,
                 enable_existential=args.ablation != "no-existential",
                 gf_actions=gf_actions,
+                gf_nouns=gf_nouns,
             )
         )
     except ValueError as error:

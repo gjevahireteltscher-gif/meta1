@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 from pathlib import Path
 
 
@@ -63,11 +64,29 @@ def contextual_action_functions(
     ]
 
 
+def contextual_noun_functions(wordnet_rules: dict) -> list[dict[str, str]]:
+    lemmas = sorted(
+        lemma
+        for lemma in wordnet_rules.get("lexical_sorts", {})
+        if re.fullmatch(r"[a-z][a-z '-]{1,48}", lemma)
+    )
+    return [
+        {
+            "lemma": lemma,
+            "gf_function": (
+                "WN_" + hashlib.sha256(lemma.encode()).hexdigest()[:16]
+            ),
+        }
+        for lemma in lemmas
+    ]
+
+
 def generate(
     rows: list[dict[str, str]],
     semantic_entities: list[dict[str, str]],
     predicates: list[dict[str, str]],
     action_roles: list[dict[str, str]],
+    wordnet_rules: dict,
 ) -> tuple[str, str]:
     authors: dict[str, str] = {}
     works: dict[str, str] = {}
@@ -130,6 +149,12 @@ def generate(
         declarations.append(f"    {function} : V2 ;")
         linearizations.append(
             f'    {function} = mkV2 "{gf_string(lemma)}" ;'
+        )
+    for noun in contextual_noun_functions(wordnet_rules):
+        declarations.append(f'    {noun["gf_function"]} : CN ;')
+        linearizations.append(
+            f'    {noun["gf_function"]} = mkCN (mkN "'
+            f'{gf_string(noun["lemma"])}") ;'
         )
 
     abstract = "\n".join(
@@ -196,17 +221,31 @@ def main() -> None:
         type=Path,
         default=Path("data/contextual-gf-actions.json"),
     )
+    parser.add_argument(
+        "--wordnet-rules",
+        type=Path,
+        default=Path("data/wordnet-context-rules.json"),
+    )
+    parser.add_argument(
+        "--noun-map-output",
+        type=Path,
+        default=Path("data/contextual-gf-nouns.json"),
+    )
     arguments = parser.parse_args()
 
     predicates = read_rows(arguments.predicates) + read_rows(
         arguments.verbnet_predicates
     )
     action_roles = read_rows(arguments.verbnet_action_roles)
+    wordnet_rules = json.loads(
+        arguments.wordnet_rules.read_text(encoding="utf-8")
+    )
     abstract, concrete = generate(
         read_rows(arguments.input),
         read_rows(arguments.semantic_entities),
         predicates,
         action_roles,
+        wordnet_rules,
     )
     arguments.abstract_output.write_text(abstract, encoding="utf-8")
     arguments.concrete_output.write_text(concrete, encoding="utf-8")
@@ -215,6 +254,18 @@ def main() -> None:
             {
                 "schema_version": "contextual-gf-actions-1",
                 "actions": contextual_action_functions(predicates, action_roles),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    arguments.noun_map_output.write_text(
+        json.dumps(
+            {
+                "schema_version": "contextual-gf-nouns-1",
+                "nouns": contextual_noun_functions(wordnet_rules),
             },
             indent=2,
             sort_keys=True,

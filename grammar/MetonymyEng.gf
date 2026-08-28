@@ -7,6 +7,7 @@ concrete MetonymyEng of Metonymy =
     VP = VP ;
     V2 = V2 ;
     PP = Adv ;
+    CN = CN ;
 
   lin
     Pred np vp = mkS (mkCl np vp) ;
@@ -19,6 +20,10 @@ concrete MetonymyEng of Metonymy =
     ModifyNP np pp = mkNP np pp ;
     ModifyRel np verb object =
       mkNP np (mkRS (mkRCl which_RP (mkVP verb object))) ;
+    IndefCN noun = mkNP a_Det noun ;
+    DefCN noun = mkNP the_Det noun ;
+    ModifyRelCN noun verb object =
+      mkCN noun (mkRS (mkRCl which_RP (mkVP verb object))) ;
     EveryCN singular plural =
       lin NP {
         s = \\_ => "every" ++ singular.s ;
