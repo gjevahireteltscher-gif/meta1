@@ -1,0 +1,62 @@
+{
+  "benchmark": "SemEval-2007 Task 8 location test",
+  "corpus_sha256": "1dc771c9fbee5a6c2cd0cab38b26d3b2a65a637828b602110387656280c8871e",
+  "git_commit": "292da60cc4a6f258a044bea1e9b3d9f352e0756e",
+  "instances": 908,
+  "gold_distribution": {
+    "literal": 721,
+    "metonymic": 167,
+    "mixed": 20
+  },
+  "expansion": {
+    "full": {
+      "submitted": 0,
+      "abstained": 908,
+      "coverage": 0.0,
+      "precision": null,
+      "recall": 0.0,
+      "f1": null
+    },
+    "no-types": {
+      "submitted": 0,
+      "abstained": 908,
+      "coverage": 0.0,
+      "precision": null,
+      "recall": 0.0,
+      "f1": null
+    },
+    "no-ontology": {
+      "submitted": 0,
+      "abstained": 908,
+      "coverage": 0.0,
+      "precision": null,
+      "recall": 0.0,
+      "f1": null
+    },
+    "no-context": {
+      "submitted": 0,
+      "abstained": 908,
+      "coverage": 0.0,
+      "precision": null,
+      "recall": 0.0,
+      "f1": null
+    },
+    "no-verbnet": {
+      "submitted": 0,
+      "abstained": 908,
+      "coverage": 0.0,
+      "precision": null,
+      "recall": 0.0,
+      "f1": null
+    }
+  },
+  "contraction": {
+    "status": "not measurable from SemEval labels",
+    "reason": "The benchmark has no explicit expansion targets or safe-forgetting annotations."
+  },
+  "false_path_analysis": {
+    "emitted_false_paths": 0,
+    "resolution_abstentions_per_condition": 908
+  },
+  "interpretation": "The controlled GF grammar has zero open-domain SemEval coverage. Undefined precision and F1 are represented as null rather than silently coerced to zero."
+}

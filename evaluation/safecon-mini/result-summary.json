@@ -1,0 +1,23 @@
+{
+  "benchmark": "SafeCon-Mini 1.0",
+  "instances": 24,
+  "safe": 12,
+  "unsafe": 12,
+  "evaluated_commit": "811b1ca",
+  "tp": 8,
+  "fp": 0,
+  "fn": 4,
+  "tn": 12,
+  "precision": 1.0,
+  "recall": 0.6666666666666666,
+  "f1": 0.8,
+  "coverage": 1.0,
+  "unsafe_contraction_rate": 0.0,
+  "missed_safe_ids": [
+    "scm-schnitzler-safe",
+    "scm-galeano-safe",
+    "scm-morgenstern-safe",
+    "scm-jelinek-safe"
+  ],
+  "interpretation": "All controlled GF-overlap generic contractions succeed and all matched unsafe contractions are rejected. Four contextual prefix constructions remain outside contraction parsing coverage."
+}

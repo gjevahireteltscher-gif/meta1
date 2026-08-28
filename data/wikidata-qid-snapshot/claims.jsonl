@@ -1,0 +1,10 @@
+{"property":"P101","source":"Q1049470","target":"Q413"}
+{"property":"P101","source":"Q2004561","target":"Q413"}
+{"property":"P131","source":"Q1049470","target":"Q639408"}
+{"property":"P131","source":"Q2004561","target":"Q639408"}
+{"property":"P131","source":"Q7974219","target":"Q639408"}
+{"property":"P31","source":"Q1049470","target":"Q3918"}
+{"property":"P31","source":"Q2004561","target":"Q31855"}
+{"property":"P31","source":"Q413","target":"Q11862829"}
+{"property":"P31","source":"Q639408","target":"Q515"}
+{"property":"P31","source":"Q7974219","target":"Q355304"}

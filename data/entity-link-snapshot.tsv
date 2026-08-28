@@ -1,0 +1,8 @@
+record_id	family	source_alias	endpoint_id	endpoint_label	provenance
+wikidata-v1:moscow-government	location-for-institution	Moscow	Q2184	Government of Russia	Wikidata:Q649→Q2184:CC0:snapshot-v1
+wikidata-v1:delft-university	location-for-institution	Delft	Q752663	Delft University of Technology	Wikidata:Q690→Q752663:CC0:snapshot-v1
+wikidata-v1:oxford-university	location-for-institution	Oxford	Q34433	University of Oxford	Wikidata:Q34217→Q34433:CC0:snapshot-v1
+wikidata-v1:cambridge-university	location-for-institution	Cambridge	Q35794	University of Cambridge	Wikidata:Q350→Q35794:CC0:snapshot-v1
+wikidata-v1:liverpool-team	location-for-team	Liverpool	Q1130849	Liverpool F.C.	Wikidata:Q24826→Q1130849:CC0:snapshot-v1
+wikidata-v1:barcelona-team	location-for-team	Barcelona	Q7156	FC Barcelona	Wikidata:Q1492→Q7156:CC0:snapshot-v1
+wikidata-v1:manchester-team	location-for-team	Manchester	Q18656	Manchester United F.C.	Wikidata:Q18125→Q18656:CC0:snapshot-v1

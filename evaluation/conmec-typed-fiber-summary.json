@@ -1,0 +1,22 @@
+{
+  "benchmark": "ConMeC full downloadable CSV",
+  "system": "VerbNet Action×Role typed fiber search",
+  "source_sha256": "cd692d6953bb719bb6aeb0ac13df7c3641564918c38cf39ad15bcf20c8b76d90",
+  "source_instances": 6000,
+  "evaluated_instances": 5999,
+  "quarantined_instances": 1,
+  "protocol": "target-span-aware, physically separated inference/gold",
+  "full": {
+    "coverage": 0.4049008168028005,
+    "accuracy_micro_f1": 0.4176554342667299,
+    "macro_f1": 0.27437386030661676,
+    "metonymic_precision": 0.18518518518518517,
+    "metonymic_recall": 0.011668611435239206,
+    "metonymic_f1": 0.021953896816684963,
+    "bridge_family_accuracy_on_true_positive_detections": 0.8,
+    "emitted": 108,
+    "literal_no_rewrite": 2321,
+    "abstained": 3570
+  },
+  "interpretation": "Most newly discovered Action×Role paths are selectional preferences and therefore remain abstentions without discourse promotion evidence. This preserves the formal trust boundary but does not by itself improve open-domain recall."
+}

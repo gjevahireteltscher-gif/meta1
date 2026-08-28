@@ -1,0 +1,8 @@
+{
+  "agda": "2.6.3",
+  "cubical": "v0.5",
+  "gf": "3.12.0",
+  "gf_rgl": "20260403",
+  "ghc": "9.4.7",
+  "semeval_corpus": "user-supplied under applicable BNC terms"
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": "contextual-language-rules-1",
+  "actions": {
+    "announce": {
+      "forms": ["announce", "announced", "announces"],
+      "gf_form": "announces",
+      "role": "SubjectHole",
+      "requirement": "AnyOf [HasSort Animate,HasSort Organization]",
+      "bridge_relations": ["InstitutionOf", "AffiliatedWith"],
+      "max_depth": 1,
+      "provenance": "VerbNet:say-37.7"
+    },
+    "read": {
+      "forms": ["read", "reads"],
+      "gf_form": "reads",
+      "role": "ObjectHole",
+      "requirement": "HasSort Readable",
+      "bridge_relations": ["Authored", "Created"],
+      "max_depth": 1,
+      "provenance": "local:audited-read"
+    },
+    "sign": {
+      "forms": ["sign", "signed", "signs"],
+      "gf_form": "signs",
+      "role": "SubjectHole",
+      "requirement": "HasSort Agent",
+      "bridge_relations": ["InstitutionOf", "GovernedBy", "AffiliatedWith"],
+      "max_depth": 1,
+      "provenance": "local:audited-sign"
+    },
+    "wear": {
+      "forms": ["wear", "wears", "wore"],
+      "gf_form": "wears",
+      "role": "ObjectHole",
+      "requirement": "HasSort Wearable",
+      "bridge_relations": ["Produces", "Created"],
+      "max_depth": 1,
+      "provenance": "local:audited-wear"
+    }
+  },
+  "lexical_sorts": {
+    "book": {"requirement": "HasSort Readable", "provenance": "WordNet:book.n.01"},
+    "clothing": {"requirement": "HasSort Clothing", "provenance": "WordNet:clothing.n.01"},
+    "physics": {"requirement": "HasSort ScientificDiscipline", "provenance": "WordNet:physics.n.01"},
+    "programme": {"requirement": "AnyOf [HasSort Programme,HasSort ResearchProgramme]", "provenance": "WordNet:program.n.08"}
+  },
+  "context_templates": [
+    {
+      "construction": "ModIn",
+      "head_sorts": ["Programme", "ResearchProgramme"],
+      "relation": "Conducts",
+      "target_slot": "modifier",
+      "provenance": "context-template:programme-in-topic:v1"
+    }
+  ],
+  "composition_matrix": [
+    {
+      "modifier_sort": "Political",
+      "noun_sort": "Agreement",
+      "result_sort": "PoliticalAgreement",
+      "provenance": "ontology-composition:Political×Agreement"
+    },
+    {
+      "modifier_sort": "Commercial",
+      "noun_sort": "Agreement",
+      "result_sort": "CommercialAgreement",
+      "provenance": "ontology-composition:Commercial×Agreement"
+    }
+  ],
+  "action_object_requirements": {
+    "sign": {
+      "Agreement": {
+        "candidate_requirement": "HasSort Agent",
+        "provenance": "FrameNet:Sign_agreement:Signer"
+      },
+      "PoliticalAgreement": {
+        "candidate_requirement": "AnyOf [HasSort Government,HasSort PoliticalOrganization]",
+        "provenance": "FrameNet:Political_agreement:Signatory"
+      },
+      "CommercialAgreement": {
+        "candidate_requirement": "HasSort BusinessOrganization",
+        "provenance": "FrameNet:Commercial_agreement:Signatory"
+      }
+    }
+  }
+}

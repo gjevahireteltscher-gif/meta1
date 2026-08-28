@@ -1,0 +1,9 @@
+{"gold_families":["author-for-work"],"gold_qids":["Q6579646"],"id":"audited-rumi-read"}
+{"gold_families":["location-for-institution"],"gold_qids":["Q1049470","Q2004561"],"id":"audited-waterloo-physics"}
+{"gold_families":["location-for-institution"],"gold_qids":["Q218115"],"id":"audited-paris-commercial"}
+{"gold_families":["location-for-institution"],"gold_qids":[],"id":"audited-paris-political"}
+{"gold_families":["location-for-institution"],"gold_qids":["Q13683","Q4995","Q8774"],"id":"audited-london-commercial"}
+{"gold_families":["author-for-work"],"gold_qids":["Q43347"],"id":"audited-contract-rumi"}
+{"gold_families":["location-for-institution"],"gold_qids":["Q90"],"id":"audited-contract-paris-commercial"}
+{"gold_families":["location-for-institution"],"gold_qids":[],"id":"audited-reject-waterloo-ambiguous"}
+{"gold_families":["location-for-institution"],"gold_qids":[],"id":"audited-reject-paris-political"}

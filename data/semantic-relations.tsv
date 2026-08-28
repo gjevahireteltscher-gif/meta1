@@ -1,0 +1,7 @@
+relation	source	target	provenance
+Created	mozart	music-of-mozart	local:semantic-fixture
+Created	mozart	eine-kleine-nachtmusik	local:semantic-fixture
+Created	spielberg	films-of-spielberg	local:semantic-fixture
+Created	spielberg	jaws	local:semantic-fixture
+Contains	plate	food-on-plate	local:semantic-fixture
+ProducedBy	chanel	clothing-by-chanel	local:semantic-fixture

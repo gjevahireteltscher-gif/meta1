@@ -1,0 +1,25 @@
+{
+  "wimcor_v1_1": {
+    "url": "https://kevinalexmathews.github.io/files/wimcor-v1.1.tar.gz",
+    "sha256": "df4d52a63d9c03cdce543f5d9638efafab73736ce117f90352373fd7051f8e2b",
+    "size_bytes": 95322065,
+    "license": "CC-BY-SA-3.0",
+    "expected_counts": {
+      "full": 206000,
+      "train": 123600,
+      "validation": 41200,
+      "test": 41200
+    }
+  },
+  "conmec": {
+    "url": "https://raw.githubusercontent.com/SaptGhosh/ConMeC/ec6914770b86eb82347724e22c7b627598644ba4/DATASET.csv",
+    "sha256": "cd692d6953bb719bb6aeb0ac13df7c3641564918c38cf39ad15bcf20c8b76d90",
+    "size_bytes": 4714341,
+    "license": "Apache-2.0-and-Wikipedia-CC-BY-SA",
+    "expected_counts": {
+      "all": 6000,
+      "metonymic": 1714,
+      "literal": 4286
+    }
+  }
+}

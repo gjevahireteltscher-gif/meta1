@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<corpus xmlns:bnc="urn:bnc">
+  <sample id="s1" label="literal">
+    <context>The delegation arrived in <location>Paris</location>.</context>
+  </sample>
+  <sample id="s2">
+    <context><location>Moscow</location> signed the agreement.</context>
+    <annot>place-for-government</annot>
+  </sample>
+  <sample id="s3" type="mixed">
+    <context><location>Europe</location> voted and covers a continent.</context>
+  </sample>
+</corpus>

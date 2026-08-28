@@ -1,0 +1,14 @@
+{
+  "directions": {
+    "contract": 20,
+    "expand": 49
+  },
+  "families": {
+    "author-for-work": 2,
+    "location-for-institution": 67
+  },
+  "gold_policy": "derived from frozen graph/type projections; not independent linguistic annotation",
+  "graph_sha256": "2d852014742eea114da51f9cf117770d94f437ea52ec5ad9468157fc0b3f3989",
+  "instances": 69,
+  "schema_version": "contextual-silver-corpus-1"
+}

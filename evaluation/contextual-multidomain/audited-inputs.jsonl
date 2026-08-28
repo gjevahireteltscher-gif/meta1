@@ -1,0 +1,9 @@
+{"family":"author-for-work","id":"audited-rumi-read","sentence":"John reads Rumi","source":"Rumi"}
+{"family":"location-for-institution","id":"audited-waterloo-physics","sentence":"Waterloo announced a programme in physics","source":"Waterloo"}
+{"family":"location-for-institution","id":"audited-paris-commercial","sentence":"Paris signed the commercial agreement","source":"Paris"}
+{"family":"location-for-institution","id":"audited-paris-political","sentence":"Paris signed the political agreement","source":"Paris"}
+{"family":"location-for-institution","id":"audited-london-commercial","sentence":"London signed the commercial agreement","source":"London"}
+{"contract_target":"Masnavi","direction":"contract","family":"author-for-work","id":"audited-contract-rumi","sentence":"John reads Masnavi","source":"Rumi"}
+{"contract_target":"Chanel","direction":"contract","family":"location-for-institution","id":"audited-contract-paris-commercial","sentence":"Chanel signed the commercial agreement","source":"Paris"}
+{"contract_target":"UWaterloo","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"audited-reject-waterloo-ambiguous","sentence":"UWaterloo announced a programme in physics","source":"Waterloo"}
+{"contract_target":"Chanel","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"audited-reject-paris-political","sentence":"Chanel signed the political agreement","source":"Paris"}

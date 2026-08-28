@@ -1,0 +1,2 @@
+scenario	source_qid	action	role	max_depth	bridge_relations	constraints
+waterloo	Q639408	announce	SubjectHole	1	InstitutionOf	Verb|announce|announced|9|18|requires|AnyOf [HasSort Animate,HasSort Organization]|VerbNet:say-37.7;;Noun|physics|physics|38|45|relation|Conducts|Q413|context-template:programme-in-topic:v1

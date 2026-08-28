@@ -1,0 +1,16 @@
+{"schema_version":"safecon-context-2.0","id":"scc-baseline-safe","stratum":"context-v2","phenomenon":"baseline","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-baseline-unsafe","stratum":"context-v2","phenomenon":"baseline","text":"John reads Masnavi.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-modifier-safe","stratum":"context-v2","phenomenon":"modifier","text":"John carefully reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-modifier-unsafe","stratum":"context-v2","phenomenon":"modifier","text":"John reads Rumi's early works.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-quantifier-safe","stratum":"context-v2","phenomenon":"quantifier","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-quantifier-unsafe","stratum":"context-v2","phenomenon":"quantifier","text":"John reads every work by Rumi.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-negation-safe","stratum":"context-v2","phenomenon":"negation","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-negation-unsafe","stratum":"context-v2","phenomenon":"negation","text":"John never reads Rumi's works.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-focus-safe","stratum":"context-v2","phenomenon":"focus","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-focus-unsafe","stratum":"context-v2","phenomenon":"focus","text":"John reads only Rumi's works.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-anaphora-safe","stratum":"context-v2","phenomenon":"anaphora","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-anaphora-unsafe","stratum":"context-v2","phenomenon":"anaphora","text":"John reads Rumi's works. Mary catalogs them.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-temporal-safe","stratum":"context-v2","phenomenon":"temporal","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-temporal-unsafe","stratum":"context-v2","phenomenon":"temporal","text":"John reads Rumi's works from 1920.","gold":{"action":"no_contract"}}
+{"schema_version":"safecon-context-2.0","id":"scc-discourse-safe","stratum":"context-v2","phenomenon":"discourse","text":"John reads Rumi's works.","gold":{"action":"contract","coarse_entity_id":"Q43347"}}
+{"schema_version":"safecon-context-2.0","id":"scc-discourse-unsafe","stratum":"context-v2","phenomenon":"discourse","text":"During the exhibition John reads Rumi's works.","gold":{"action":"no_contract"}}

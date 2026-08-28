@@ -1,0 +1,69 @@
+{"direction":"expand","family":"author-for-work","id":"read-q43347","sentence":"Anna reads Rumi","source":"Rumi"}
+{"contract_target":"Masnavi","direction":"contract","family":"author-for-work","id":"contract-read-q43347","sentence":"Anna reads Masnavi","source":"Rumi"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q1341","sentence":"Stavropol signed the agreement","source":"Stavropol"}
+{"contract_target":"TogliattiAzot","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-generic-q1341","sentence":"TogliattiAzot signed the agreement","source":"Stavropol"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q1341","sentence":"Stavropol signed the commercial agreement","source":"Stavropol"}
+{"contract_target":"TogliattiAzot","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-commercial-q1341","sentence":"TogliattiAzot signed the commercial agreement","source":"Stavropol"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q1341","sentence":"Stavropol signed the political agreement","source":"Stavropol"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q1492","sentence":"Barcelona signed the agreement","source":"Barcelona"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q1492","sentence":"Barcelona signed the commercial agreement","source":"Barcelona"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q1492","sentence":"Barcelona signed the political agreement","source":"Barcelona"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q15180","sentence":"CCCP signed the agreement","source":"CCCP"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q15180","sentence":"CCCP signed the commercial agreement","source":"CCCP"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q15180","sentence":"CCCP signed the political agreement","source":"CCCP"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q159","sentence":"Russia signed the agreement","source":"Russia"}
+{"contract_target":"VAZ","direction":"contract","family":"location-for-institution","id":"contract-sign-generic-q159","sentence":"VAZ signed the agreement","source":"Russia"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q159","sentence":"Russia signed the commercial agreement","source":"Russia"}
+{"contract_target":"VAZ","direction":"contract","family":"location-for-institution","id":"contract-sign-commercial-q159","sentence":"VAZ signed the commercial agreement","source":"Russia"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q159","sentence":"Russia signed the political agreement","source":"Russia"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q2184","sentence":"RSFSR signed the agreement","source":"RSFSR"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q2184","sentence":"RSFSR signed the commercial agreement","source":"RSFSR"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q2184","sentence":"RSFSR signed the political agreement","source":"RSFSR"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q334","sentence":"Singapore signed the agreement","source":"Singapore"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q334","sentence":"Singapore signed the commercial agreement","source":"Singapore"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q334","sentence":"Singapore signed the political agreement","source":"Singapore"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q48958","sentence":"Neuilly signed the agreement","source":"Neuilly"}
+{"contract_target":"Chanel","direction":"contract","family":"location-for-institution","id":"contract-sign-generic-q48958","sentence":"Chanel signed the agreement","source":"Neuilly"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q48958","sentence":"Neuilly signed the commercial agreement","source":"Neuilly"}
+{"contract_target":"Chanel","direction":"contract","family":"location-for-institution","id":"contract-sign-commercial-q48958","sentence":"Chanel signed the commercial agreement","source":"Neuilly"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q48958","sentence":"Neuilly signed the political agreement","source":"Neuilly"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q580","sentence":"Lodz signed the agreement","source":"Lodz"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q580","sentence":"Lodz signed the commercial agreement","source":"Lodz"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q580","sentence":"Lodz signed the political agreement","source":"Lodz"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q586","sentence":"Bonn signed the agreement","source":"Bonn"}
+{"contract_target":"IFFHS","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-generic-q586","sentence":"IFFHS signed the agreement","source":"Bonn"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q586","sentence":"Bonn signed the commercial agreement","source":"Bonn"}
+{"contract_target":"Telekom","direction":"contract","family":"location-for-institution","id":"contract-sign-commercial-q586","sentence":"Telekom signed the commercial agreement","source":"Bonn"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q586","sentence":"Bonn signed the political agreement","source":"Bonn"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q639408","sentence":"Waterloo signed the agreement","source":"Waterloo"}
+{"contract_target":"UWaterloo","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-generic-q639408","sentence":"UWaterloo signed the agreement","source":"Waterloo"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q639408","sentence":"Waterloo signed the commercial agreement","source":"Waterloo"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q639408","sentence":"Waterloo signed the political agreement","source":"Waterloo"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q649","sentence":"Moscow signed the agreement","source":"Moscow"}
+{"contract_target":"Yandex","direction":"contract","family":"location-for-institution","id":"contract-sign-generic-q649","sentence":"Yandex signed the agreement","source":"Moscow"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q649","sentence":"Moscow signed the commercial agreement","source":"Moscow"}
+{"contract_target":"Yandex","direction":"contract","family":"location-for-institution","id":"contract-sign-commercial-q649","sentence":"Yandex signed the commercial agreement","source":"Moscow"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q649","sentence":"Moscow signed the political agreement","source":"Moscow"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q70","sentence":"Bern signed the agreement","source":"Bern"}
+{"contract_target":"CAS","direction":"contract","family":"location-for-institution","id":"contract-sign-generic-q70","sentence":"CAS signed the agreement","source":"Bern"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q70","sentence":"Bern signed the commercial agreement","source":"Bern"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q70","sentence":"Bern signed the political agreement","source":"Bern"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q84","sentence":"London signed the agreement","source":"London"}
+{"contract_target":"XLIF","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-generic-q84","sentence":"XLIF signed the agreement","source":"London"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q84","sentence":"London signed the commercial agreement","source":"London"}
+{"contract_target":"XLIF","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-commercial-q84","sentence":"XLIF signed the commercial agreement","source":"London"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q84","sentence":"London signed the political agreement","source":"London"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q90","sentence":"Lutetia signed the agreement","source":"Lutetia"}
+{"contract_target":"Chanel","direction":"contract","family":"location-for-institution","id":"contract-sign-generic-q90","sentence":"Chanel signed the agreement","source":"Lutetia"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q90","sentence":"Lutetia signed the commercial agreement","source":"Lutetia"}
+{"contract_target":"Chanel","direction":"contract","family":"location-for-institution","id":"contract-sign-commercial-q90","sentence":"Chanel signed the commercial agreement","source":"Lutetia"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q90","sentence":"Lutetia signed the political agreement","source":"Lutetia"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q956","sentence":"Shuntian signed the agreement","source":"Shuntian"}
+{"contract_target":"Baidu","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-generic-q956","sentence":"Baidu signed the agreement","source":"Shuntian"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q956","sentence":"Shuntian signed the commercial agreement","source":"Shuntian"}
+{"contract_target":"Baidu","direction":"contract","expected_status":"rejected","family":"location-for-institution","id":"reject-contract-sign-commercial-q956","sentence":"Baidu signed the commercial agreement","source":"Shuntian"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q956","sentence":"Shuntian signed the political agreement","source":"Shuntian"}
+{"direction":"expand","family":"location-for-institution","id":"sign-generic-q959","sentence":"Haishenwei signed the agreement","source":"Haishenwei"}
+{"contract_target":"FESTU","direction":"contract","family":"location-for-institution","id":"contract-sign-generic-q959","sentence":"FESTU signed the agreement","source":"Haishenwei"}
+{"direction":"expand","family":"location-for-institution","id":"sign-commercial-q959","sentence":"Haishenwei signed the commercial agreement","source":"Haishenwei"}
+{"direction":"expand","family":"location-for-institution","id":"sign-political-q959","sentence":"Haishenwei signed the political agreement","source":"Haishenwei"}

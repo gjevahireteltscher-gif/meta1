@@ -1,0 +1,10 @@
+dist-newstyle/
+dist/
+build/
+_build/
+.cache/
+*.agdai
+*.gfo
+*.pgf
+__pycache__/
+*.pyc

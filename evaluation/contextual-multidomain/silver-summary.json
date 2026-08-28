@@ -1,0 +1,62 @@
+{
+  "contraction_safety": {
+    "unique-contextual-fiber": 12
+  },
+  "eliminations_per_constraint": {
+    "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@political": 19,
+    "Requires (HasSort Agent)@agreement": 0,
+    "Requires (HasSort Agent)@sign": 27,
+    "Requires (HasSort BusinessOrganization)@commercial": 8,
+    "Requires (HasSort Readable)@read": 0,
+    "graph-related": 0
+  },
+  "empty_fiber_rate": {
+    "denominator": 69,
+    "numerator": 35
+  },
+  "empty_gold_exact_rate": {
+    "denominator": 35,
+    "numerator": 35
+  },
+  "exact_match_by_direction": {
+    "contract": {
+      "denominator": 20,
+      "numerator": 20
+    },
+    "expand": {
+      "denominator": 49,
+      "numerator": 49
+    }
+  },
+  "family_micro_recall": {
+    "denominator": 69,
+    "numerator": 69
+  },
+  "fiber_cardinality_histogram": {
+    "0": 35,
+    "1": 26,
+    "2": 6,
+    "3": 2
+  },
+  "fiber_exact_match_rate": {
+    "denominator": 69,
+    "numerator": 69
+  },
+  "gold_fully_contained_rate": {
+    "denominator": 69,
+    "numerator": 69
+  },
+  "gold_in_fiber_hit_rate": {
+    "denominator": 34,
+    "numerator": 34
+  },
+  "gold_qid_micro_recall": {
+    "denominator": 44,
+    "numerator": 44
+  },
+  "gold_without_fiber_hit": [],
+  "instances": 69,
+  "obstruction_distribution": {
+    "MissingRequirement": 47
+  }
+}

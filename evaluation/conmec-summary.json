@@ -1,0 +1,25 @@
+{
+  "benchmark": "ConMeC full downloadable CSV",
+  "source_sha256": "cd692d6953bb719bb6aeb0ac13df7c3641564918c38cf39ad15bcf20c8b76d90",
+  "source_instances": 6000,
+  "evaluated_instances": 5999,
+  "quarantined_instances": 1,
+  "protocol": "target-span-aware, physically separated inference/gold",
+  "full": {
+    "coverage": 1.0,
+    "accuracy_micro_f1": 0.6989498249708285,
+    "macro_f1": 0.45774804804804803,
+    "metonymic_precision": 0.3380281690140845,
+    "metonymic_recall": 0.056009334889148193,
+    "metonymic_f1": 0.09609609609609611,
+    "bridge_family_accuracy_on_true_positive_detections": 1.0,
+    "emitted": 284,
+    "literal_no_rewrite": 5715
+  },
+  "integrity": {
+    "gold_fields_visible_to_runner": false,
+    "target_span_required": true,
+    "category_metadata_used_for_family_only": true
+  },
+  "interpretation": "The stricter target window improves literal accuracy but remains a conservative low-recall common-noun baseline."
+}
