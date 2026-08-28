@@ -39,7 +39,6 @@ ARITIES = {
     "OpenPN": 1,
     "OpenIndefCN": 2,
     "OpenDefCN": 2,
-    "OpenV2": 1,
 }
 
 

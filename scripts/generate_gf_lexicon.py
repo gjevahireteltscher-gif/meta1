@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 from pathlib import Path
 
 
@@ -29,6 +30,7 @@ def generate(
     rows: list[dict[str, str]],
     semantic_entities: list[dict[str, str]],
     predicates: list[dict[str, str]],
+    action_roles: list[dict[str, str]],
 ) -> tuple[str, str]:
     authors: dict[str, str] = {}
     works: dict[str, str] = {}
@@ -72,13 +74,33 @@ def generate(
         )
 
     base_predicates = {"Read", "Drink", "Sign"}
+    represented_lemmas = {"announce", "read", "drink", "sign"}
     for row in predicates:
         function = row["gf_function"]
+        represented_lemmas.add(row["lemma"].casefold().replace("_", " "))
         if function in base_predicates:
             continue
         declarations.append(f"    {function} : V2 ;")
         linearizations.append(
             f'    {function} = {row["gf_expression"]} ;'
+        )
+
+    contextual_lemmas = sorted(
+        {
+            row["lemma"].casefold().replace("_", " ")
+            for row in action_roles
+            if row["mapping_status"] == "compiled"
+            and row["hole_role"] in {"SubjectHole", "ObjectHole"}
+            and row["requirement"] not in {"", "null"}
+        }
+        - represented_lemmas
+    )
+    for lemma in contextual_lemmas:
+        digest = hashlib.sha256(lemma.encode()).hexdigest()[:16]
+        function = f"CTX_{digest}"
+        declarations.append(f"    {function} : V2 ;")
+        linearizations.append(
+            f'    {function} = mkV2 "{gf_string(lemma)}" ;'
         )
 
     abstract = "\n".join(
@@ -126,6 +148,11 @@ def main() -> None:
         default=Path("data/verbnet-predicates.tsv"),
     )
     parser.add_argument(
+        "--verbnet-action-roles",
+        type=Path,
+        default=Path("data/verbnet-action-roles.tsv"),
+    )
+    parser.add_argument(
         "--abstract-output",
         type=Path,
         default=Path("grammar/GeneratedMetonymy.gf"),
@@ -142,6 +169,7 @@ def main() -> None:
         read_rows(arguments.semantic_entities),
         read_rows(arguments.predicates)
         + read_rows(arguments.verbnet_predicates),
+        read_rows(arguments.verbnet_action_roles),
     )
     arguments.abstract_output.write_text(abstract, encoding="utf-8")
     arguments.concrete_output.write_text(concrete, encoding="utf-8")
