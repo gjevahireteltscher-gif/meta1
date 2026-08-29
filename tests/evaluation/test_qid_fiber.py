@@ -242,7 +242,7 @@ class QidFiberTests(unittest.TestCase):
         )
         self.assertEqual(
             proposal["bridge_relations"],
-            ["InstitutionOf", "AffiliatedWith"],
+            ["InstitutionOf", "AffiliatedWith", "LocatedIn"],
         )
 
     def test_wordnet_sort_drives_generic_in_modifier_template(self):
@@ -372,6 +372,118 @@ class QidFiberTests(unittest.TestCase):
                 },
             )
 
+    def test_scientific_programme_composition_is_research_programme(self):
+        language_rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wordnet_rules = json.loads(
+            (ROOT / "data/wordnet-context-rules.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            wordnet_rules["adjective_sorts"]["scientific"]["sort"], "Scientific"
+        )
+        self.assertEqual(
+            wordnet_rules["adjective_sorts"]["educational"]["sort"],
+            "Educational",
+        )
+        constraints = compile_gf_constraints(
+            {
+                "action": "announce",
+                "role": "SubjectHole",
+                "sentence": "Waterloo announced a scientific programme",
+                "frames": [{"frame": "Statement"}],
+                "frame_role_projections": [],
+                "provenance": {"action": "test:VerbNet:announce"},
+                "constraints": [
+                    {
+                        "origin": {
+                            "constructor": "Verb",
+                            "lemma": "announce",
+                            "surface": "announced",
+                            "start": 9,
+                            "end": 18,
+                        },
+                        "payload": {
+                            "requires": (
+                                "AnyOf [HasSort Animate,HasSort Organization]"
+                            )
+                        },
+                        "provenance": "test:VerbNet:announce",
+                    }
+                ],
+            },
+            (
+                'Pred (OpenPN "Waterloo") '
+                '(Compl Announce '
+                '(OpenAdjIndefCN "scientific" "programme" "?6"))'
+            ),
+            language_rules,
+            wordnet_rules,
+            {},
+        )
+        composition = next(
+            item
+            for item in constraints
+            if item["origin"]["constructor"] == "FrameComposition"
+        )
+        self.assertEqual(
+            composition["payload"]["requires"],
+            "AnyOf [HasSort Organization,HasSort Institution]",
+        )
+        self.assertIn("Scientific×Programme", composition["provenance"])
+
+    def test_institution_in_place_is_locatedin_preference(self):
+        language_rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wordnet_rules = json.loads(
+            (ROOT / "data/wordnet-context-rules.json").read_text(encoding="utf-8")
+        )
+        constraints = compile_gf_constraints(
+            {
+                "action": "announce",
+                "role": "SubjectHole",
+                "sentence": "Paris announced an institution in Waterloo",
+                "frames": [{"frame": "Statement"}],
+                "frame_role_projections": [],
+                "provenance": {"action": "test:VerbNet:announce"},
+                "constraints": [
+                    {
+                        "origin": {
+                            "constructor": "Verb",
+                            "lemma": "announce",
+                            "surface": "announced",
+                            "start": 6,
+                            "end": 15,
+                        },
+                        "payload": {
+                            "requires": (
+                                "AnyOf [HasSort Animate,HasSort Organization]"
+                            )
+                        },
+                        "provenance": "test:VerbNet:announce",
+                    }
+                ],
+            },
+            (
+                'Pred (OpenPN "Paris") '
+                '(Compl Announce '
+                '(ModifyNP (OpenIndefCN "institution" "?5") '
+                '(InPP (OpenPN "Waterloo"))))'
+            ),
+            language_rules,
+            wordnet_rules,
+            {"waterloo": ["Q639408"]},
+        )
+        self.assertEqual(
+            constraints[-1]["payload"]["prefers_relation"],
+            {"relation": "LocatedIn", "target": "Q639408"},
+        )
+
     def test_relative_clause_compiles_relation_lexicalization(self):
         language_rules = json.loads(
             (ROOT / "data/contextual-language-rules.json").read_text(
@@ -431,6 +543,62 @@ class QidFiberTests(unittest.TestCase):
         self.assertEqual(
             constraints[-1]["origin"]["lemma"],
             "examine institution that conduct physics",
+        )
+
+    def test_relative_include_compiles_contains(self):
+        language_rules = json.loads(
+            (ROOT / "data/contextual-language-rules.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wordnet_rules = json.loads(
+            (ROOT / "data/wordnet-context-rules.json").read_text(encoding="utf-8")
+        )
+        constraints = compile_gf_constraints(
+            {
+                "action": "examine",
+                "role": "ObjectHole",
+                "sentence": "Anna examines a glass that includes water",
+                "frames": [],
+                "frame_role_projections": [],
+                "provenance": {"action": "test:VerbNet:examine"},
+                "constraints": [
+                    {
+                        "origin": {
+                            "constructor": "Verb",
+                            "lemma": "examine",
+                            "surface": "examines",
+                            "start": 5,
+                            "end": 13,
+                        },
+                        "payload": {"prefers": "HasSort Organization"},
+                        "provenance": "test:VerbNet:examine",
+                    }
+                ],
+                "lexical_evidence": [
+                    {
+                        "surface": "glass",
+                        "start": 17,
+                        "end": 22,
+                        "requirement": "HasSort Drinkable",
+                        "provenance": "test:WordNet:glass",
+                    }
+                ],
+            },
+            (
+                'Pred (OpenPN "Anna") '
+                '(Compl Examine '
+                '(ModifyRel (OpenIndefCN "glass" "?5") '
+                'Include (OpenPN "water")))'
+            ),
+            language_rules,
+            wordnet_rules,
+            {"water": ["Q283"]},
+            gf_actions={"Include": "include"},
+        )
+        self.assertEqual(
+            constraints[-1]["payload"]["requires_relation"],
+            {"relation": "Contains", "target": "Q283"},
         )
 
     def test_wordnet_cn_relative_clause_parses_in_gf(self):

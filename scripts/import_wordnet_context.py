@@ -24,8 +24,8 @@ ROOT_PROJECTIONS = {
 ADJECTIVE_PROJECTIONS = {
     "political": "Political",
     "commercial": "Commercial",
-    "educational": "Programme",
-    "scientific": "ScientificDiscipline",
+    "educational": "Educational",
+    "scientific": "Scientific",
 }
 
 

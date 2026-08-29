@@ -147,13 +147,13 @@ irregular morphology overrides and sort-level bridge, composition, and
 construction schemas.
 
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
-For example, WordNet supplies `Political` and `Agreement`, the versioned
-composition matrix derives `PoliticalAgreement`, and the action/object rule
-adds the corresponding signer requirement. Unknown compositions fail closed.
-The same tree walker recognizes `in/about/with/for` PP modifiers and
-WordNet-generated common nouns inside relative clauses. The generic
-Programme/ResearchProgramme template derives `Conducts(_, topic-QID)` without
-matching the words `programme` or `physics` in code.
+WordNet now projects `political`, `commercial`, `educational`, and
+`scientific` as modifier sorts. The composition matrix covers agreement,
+programme, organization, and institution heads; unknown pairs still fail
+closed. The same tree walker recognizes `in/about/with/for` PP modifiers and
+WordNet-generated common nouns inside relative clauses. Programme heads still
+derive hard `Conducts(_, topic-QID)`; institution/organization locatives and
+partner PPs are preferences.
 
 ### Cumulative constituent layers
 

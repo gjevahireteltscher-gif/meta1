@@ -6,7 +6,7 @@
     },
     "educational": {
       "provenance": "PrincetonWordNet:data.adj:02946222",
-      "sort": "Programme"
+      "sort": "Educational"
     },
     "political": {
       "provenance": "PrincetonWordNet:data.adj:02857588",
@@ -14,7 +14,7 @@
     },
     "scientific": {
       "provenance": "PrincetonWordNet:data.adj:02793274",
-      "sort": "ScientificDiscipline"
+      "sort": "Scientific"
     }
   },
   "lexical_sorts": {
