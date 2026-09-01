@@ -146,7 +146,12 @@ contextual-corpus-test: engine
 		--inference build/evaluation/contextual-audited-inference.jsonl \
 		--gold evaluation/contextual-multidomain/audited-gold.jsonl \
 		--output build/evaluation/contextual-audited-report.json
-	python3 -c 'import json; assert json.load(open("build/evaluation/contextual-silver-report.json")) == json.load(open("evaluation/contextual-multidomain/silver-summary.json")); assert json.load(open("build/evaluation/contextual-audited-report.json")) == json.load(open("evaluation/contextual-multidomain/audited-summary.json"))'
+	python3 scripts/evaluation/assert_json_equal.py \
+		build/evaluation/contextual-silver-report.json \
+		evaluation/contextual-multidomain/silver-summary.json
+	python3 scripts/evaluation/assert_json_equal.py \
+		build/evaluation/contextual-audited-report.json \
+		evaluation/contextual-multidomain/audited-summary.json
 
 contextual-ablations: engine
 	python3 scripts/evaluation/run_contextual_ablations.py \
@@ -155,7 +160,9 @@ contextual-ablations: engine
 		--engine build/metonymy \
 		--snapshot data/wikidata-openalex-snapshot \
 		--output-dir build/evaluation/contextual-ablations
-	python3 -c 'import json; assert json.load(open("build/evaluation/contextual-ablations/comparison.json")) == json.load(open("evaluation/contextual-multidomain/ablation-summary.json"))'
+	python3 scripts/evaluation/assert_json_equal.py \
+		build/evaluation/contextual-ablations/comparison.json \
+		evaluation/contextual-multidomain/ablation-summary.json
 
 reproduce:
 	./scripts/reproduce.sh
