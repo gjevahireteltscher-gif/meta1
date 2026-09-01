@@ -6,6 +6,7 @@ module Metonymy.OpenDomain
   , ActionRoleIndex
   , DependencyStatus (..)
   , DependencyHint (..)
+  , chooseActionRolesFromDependency
   , buildActionRoleIndex
   , loadEndpointSnapshot
   , analyzeOpen
