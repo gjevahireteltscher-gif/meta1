@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            --no-install-recommends agda-bin cabal-install curl ghc git make
+            --no-install-recommends agda-bin cabal-install curl ghc git make ripgrep
           curl -L \
             "https://github.com/GrammaticalFramework/gf-core/releases/download/release-3.12/gf-3.12-ubuntu-24.04.deb" \
             -o /tmp/gf.deb

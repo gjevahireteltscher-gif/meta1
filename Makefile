@@ -40,6 +40,8 @@ formal:
 		formal/Metonymy/TwoTruncatedRuntime.agda
 
 formal-artifact: formal
+	command -v rg >/dev/null || \
+		{ echo "formal-artifact requires ripgrep (rg) to check for postulates" >&2; exit 1; }
 	! rg -n \
 		'(^|[[:space:]])(postulate|TERMINATING|NON_TERMINATING|NO_POSITIVITY)([[:space:]]|$$)' \
 		formal/Metonymy --glob '*.agda'
