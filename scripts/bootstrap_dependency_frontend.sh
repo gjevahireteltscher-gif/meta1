@@ -29,7 +29,10 @@ UD_PACKAGE="$(lock_field ud_package)"
 mkdir -p "$CACHE_DIR/dist"
 
 echo "Installing stanza==$STANZA_VERSION (pinned in toolchain.lock.json)" >&2
-python3 -m pip install --no-deps "stanza==$STANZA_VERSION"
+# Stanza needs its runtime dependencies (torch, networkx, etc.) to actually
+# import and run; only the checksum verification below is deliberately
+# scoped to the top-level package.
+python3 -m pip install "stanza==$STANZA_VERSION"
 
 echo "Fetching stanza==$STANZA_VERSION sdist to verify its checksum" >&2
 python3 -m pip download --no-deps --no-binary :all: \
