@@ -36,7 +36,7 @@
       "abstention_rate": {"denominator": 9, "numerator": 1},
       "coverage": {"denominator": 9, "numerator": 8},
       "empty_fiber_rate": {"denominator": 9, "numerator": 1},
-      "fiber_exact_match_rate": {"denominator": 9, "numerator": 7},
+      "fiber_exact_match_rate": {"denominator": 9, "numerator": 6},
       "formal_stage_verification_rate": {"denominator": 16, "numerator": 16},
       "gold_in_fiber_hit_rate": {"denominator": 6, "numerator": 6}
     }
