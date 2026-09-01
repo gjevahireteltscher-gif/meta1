@@ -597,10 +597,40 @@ evaluateOpen ::
   OpenEvaluationResult
 evaluateOpen
   endpointSnapshot actionRoles base ablation hint target targetSpan sentence =
-  case
-      analyzeOpenAtWithEndpoints
+  resolveOpenDecision
+    ablation
+    ( analyzeOpenAtWithEndpoints
         endpointSnapshot actionRoles base hint target targetSpan sentence
-    of
+    )
+
+-- | Same authorization pipeline as 'evaluateOpen', but for a candidate
+-- proposed by the UD dependency-parser frontend
+-- ('analyzeOpenAtWithDependencyHint') instead of the legacy positional
+-- heuristic. Sharing 'resolveOpenDecision' keeps ablation handling and
+-- certificate authorization byte-identical between the two frontends, so
+-- 'renderOpenBatchRow' output remains directly comparable.
+evaluateOpenWithDependencyHint ::
+  [EndpointProposal] ->
+  ActionRoleIndex ->
+  KnowledgeBase ->
+  String ->
+  DatasetHint ->
+  String ->
+  Maybe (Int, Int) ->
+  DependencyHint ->
+  String ->
+  OpenEvaluationResult
+evaluateOpenWithDependencyHint
+  endpointSnapshot actionRoles base ablation hint target targetSpan dep sentence =
+  resolveOpenDecision
+    ablation
+    ( analyzeOpenAtWithDependencyHint
+        endpointSnapshot actionRoles base hint target targetSpan dep sentence
+    )
+
+resolveOpenDecision :: String -> OpenDecision -> OpenEvaluationResult
+resolveOpenDecision ablation decision =
+  case decision of
     OpenLiteral ->
       OpenEvaluationLiteral
     OpenAbstain reason ->
@@ -624,6 +654,25 @@ evaluateOpen
           OpenEvaluationPreference family candidate
         _ ->
           OpenEvaluationRejected family
+
+-- | Parse the three trailing dependency-hint TSV columns
+-- (@hole_role@, @governing_lemma@, @dep_status@) produced by
+-- @scripts/annotate_dependency_hints.py@.
+parseDependencyHint :: String -> String -> String -> Either String DependencyHint
+parseDependencyHint holeRoleField lemmaField statusField = do
+  status <- case statusField of
+    "direct-argument" -> Right DirectArgument
+    "nested-modifier" -> Right NestedModifier
+    "no-governing-verb" -> Right NoGoverningVerb
+    "parse-error" -> Right ParseError
+    other -> Left ("open-batch: unknown dep_status " <> other)
+  hole <- case holeRoleField of
+    "Subject" -> Right (Just SubjectHole)
+    "Object" -> Right (Just ObjectHole)
+    "" -> Right Nothing
+    other -> Left ("open-batch: unknown hole_role " <> other)
+  let lemma = if null lemmaField then Nothing else Just lemmaField
+  Right (DependencyHint status hole lemma)
 
 renderOpenResult :: OpenEvaluationResult -> [String]
 renderOpenResult OpenEvaluationLiteral =
@@ -703,8 +752,35 @@ runOpenBatch base endpointSnapshot actionRoles ablation = do
                     )
                 )
             _ -> die "open-batch target offsets must be integers"
+        [ identifier, dataset, category, target, start, end, sentence
+          , holeRoleField, lemmaField, statusField
+          ] ->
+          case (reads start, reads end) of
+            ([(startOffset, "")], [(endOffset, "")]) ->
+              case parseDependencyHint holeRoleField lemmaField statusField of
+                Left message -> die message
+                Right dep ->
+                  putStrLn
+                    ( renderOpenBatchRow
+                        identifier
+                        ( evaluateOpenWithDependencyHint
+                            endpointSnapshot
+                            actionRoles
+                            base
+                            ablation
+                            (datasetHint dataset category)
+                            target
+                            (Just (startOffset, endOffset))
+                            dep
+                            sentence
+                        )
+                    )
+            _ -> die "open-batch target offsets must be integers"
         _ ->
-          die "open-batch expects id,dataset,category,target,[start,end,]sentence TSV"
+          die
+            ( "open-batch expects id,dataset,category,target,[start,end,]"
+                <> "sentence[,hole_role,governing_lemma,dep_status] TSV"
+            )
 
 splitTabs :: String -> [String]
 splitTabs value =
@@ -787,6 +863,9 @@ usage =
         , "  metonymy evaluate ABLATION expand|contract \"English sentence\""
         , "  metonymy open-evaluate ABLATION DATASET CATEGORY TARGET \"English sentence\""
         , "  metonymy open-batch ABLATION  # TSV on stdin"
+        , "    id,dataset,category,target,[start,end,]sentence  (legacy frontend)"
+        , "    id,dataset,category,target,start,end,sentence,"
+        , "      hole_role,governing_lemma,dep_status  (UD dependency-hint frontend)"
         , "  metonymy contextual-fiber SCENARIO"
         , "    [--snapshot PATH] [--scenarios PATH]"
         , "  metonymy contextual-contract SCENARIO TARGET-QID"

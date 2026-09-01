@@ -722,6 +722,117 @@ main = do
         _ -> False
     )
   assert
+    "dependency frontend: direct-argument subject resolves through the same Action\215Role search"
+    ( case
+        analyzeOpenAtWithDependencyHint
+          endpointSnapshot
+          openActionRoles
+          expandedKnowledgeBase
+          WiMCorLocation
+          "Moscow"
+          Nothing
+          (DependencyHint DirectArgument (Just SubjectHole) (Just "sign"))
+          "Moscow signed the agreement"
+        of
+        OpenRewrite family _ _ _ -> family == LocationInstitution
+        _ -> False
+    )
+  assert
+    "dependency frontend: direct-argument object resolves the author-to-works bridge"
+    ( case
+        analyzeOpenAtWithDependencyHint
+          endpointSnapshot
+          openActionRoles
+          expandedKnowledgeBase
+          WiMCorLocation
+          "Tolstoy"
+          Nothing
+          (DependencyHint DirectArgument (Just ObjectHole) (Just "read"))
+          "Anna read Tolstoy"
+        of
+        OpenRewrite {} -> True
+        _ -> False
+    )
+  assert
+    "dependency frontend: reconstructed phrasal-verb lemma matches the predicates.tsv key"
+    ( case
+        analyzeOpenAtWithDependencyHint
+          endpointSnapshot
+          openActionRoles
+          expandedKnowledgeBase
+          WiMCorLocation
+          "Mozart"
+          Nothing
+          (DependencyHint DirectArgument (Just ObjectHole) (Just "listen to"))
+          "The teenager listened to Mozart"
+        of
+        OpenRewrite {} -> True
+        _ -> False
+    )
+  let nestedModifierSentence = "Anna reads Tolstoy's books"
+      nestedModifierResult =
+        analyzeOpenAtWithDependencyHint
+          endpointSnapshot
+          openActionRoles
+          expandedKnowledgeBase
+          WiMCorLocation
+          "Tolstoy"
+          Nothing
+          (DependencyHint NestedModifier Nothing Nothing)
+          nestedModifierSentence
+      legacyOnSameSentence =
+        analyzeOpenAtWithEndpoints
+          endpointSnapshot
+          openActionRoles
+          expandedKnowledgeBase
+          WiMCorLocation
+          "Tolstoy"
+          Nothing
+          nestedModifierSentence
+  assert
+    "dependency frontend abstains explicitly on a nested-modifier target"
+    (nestedModifierResult == OpenAbstain "nested-modifier-unsupported")
+  assert
+    "the nested-modifier abstention is a real behavior change, not incidental to the legacy result"
+    (legacyOnSameSentence /= nestedModifierResult)
+  assert
+    "dependency frontend degrades exactly to the legacy frontend on a parser failure"
+    ( analyzeOpenAtWithDependencyHint
+        endpointSnapshot
+        openActionRoles
+        expandedKnowledgeBase
+        WiMCorLocation
+        "Moscow"
+        Nothing
+        (DependencyHint ParseError Nothing Nothing)
+        "Moscow signed the agreement"
+        == analyzeOpenAtWithEndpoints
+             endpointSnapshot
+             openActionRoles
+             expandedKnowledgeBase
+             WiMCorLocation
+             "Moscow"
+             Nothing
+             "Moscow signed the agreement"
+    )
+  assert
+    "span validation still takes precedence over a nested-modifier dependency hint"
+    ( case
+        analyzeOpenAtWithDependencyHint
+          endpointSnapshot
+          openActionRoles
+          expandedKnowledgeBase
+          WiMCorLocation
+          "Moscow"
+          (Just (7, 13))
+          (DependencyHint NestedModifier Nothing Nothing)
+          "Moscow signed the agreement"
+        of
+        OpenAbstain "invalid-target-span" -> True
+        _ -> False
+    )
+
+  assert
     "context gate permits unrestricted generic readings"
     (safeToForget (inferForgetContext "Anna reads Tolstoy's works"))
   assert

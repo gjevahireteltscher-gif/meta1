@@ -30,6 +30,23 @@ dependency parser: coordination, passives, and long-distance dependencies
 remain fail-closed or heuristic. Legacy lexical triggers only rank
 type-compatible bridge paths.
 
+An alternative frontend, `analyzeOpenAtWithDependencyHint`, replaces this
+positional heuristic with an offline Universal Dependencies parse
+(`scripts/annotate_dependency_hints.py`) for locating the governing verb and
+determining subject/object role, rather than comparing character offsets.
+It is exactly as untrusted as the legacy frontend: it only ever proposes a
+candidate, and `runtimeCheck` re-derives admissibility identically for
+either frontend's output. It abstains explicitly, rather than guessing,
+when the target is a modifier nested inside a noun phrase (e.g. the
+possessor in "Tolstoy's books") rather than a direct clause argument —
+correctly resolving that case requires widening the checked construction
+vocabulary below, which remains future work. A parser failure on a given
+sentence falls back to the legacy frontend for that sentence, so a
+dependency-frontend run is never worse than the legacy baseline on
+sentences the parser cannot handle. See `evaluation/README.md` for the
+parallel evaluation pipeline and `data/SOURCES.md` for parser/model
+provenance and licensing.
+
 ### 2. Semantic elaboration
 
 `Metonymy.Types` associates each predicate argument with a `Requirement`.

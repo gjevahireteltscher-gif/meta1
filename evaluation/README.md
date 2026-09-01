@@ -110,6 +110,51 @@ For WiMCor and ConMeC, the runner uses the streaming open-GF elaborator.
 Every emitted rewrite is separately authorized by the compiled Agda
 `runtimeCheck`; rejected candidates are recorded as abstentions.
 
+### UD dependency-hint frontend (optional)
+
+By default, `run_engine_predictions.py` builds `open-batch` rows through the
+legacy family-trigger frontend
+(`engine/src/Metonymy/OpenDomain.hs`'s `analyzeOpenAtWithEndpoints`), which
+infers whether a marked target is a clause subject or object by comparing
+character offsets rather than by parsing. `scripts/annotate_dependency_hints.py`
+offline-annotates a dataset with an actual Universal Dependencies parse
+(Stanza, pinned in `toolchain.lock.json`), and `run_engine_predictions.py
+--frontend dependency` routes each row through
+`analyzeOpenAtWithDependencyHint` instead — an equally untrusted proposer;
+the compiled Agda `runtimeCheck` re-derives admissibility identically either
+way. See `docs/architecture.md` for the trust boundary and
+`scripts/bootstrap_dependency_frontend.sh` for the opt-in install step (not
+part of the default `scripts/bootstrap.sh`/`make test` path).
+
+```bash
+python3 scripts/annotate_dependency_hints.py \
+  --dataset build/evaluation/dataset.inputs.jsonl \
+  --output build/evaluation/dataset.dependency-hints.jsonl
+
+python3 scripts/evaluation/run_engine_predictions.py \
+  --engine build/metonymy \
+  --dataset build/evaluation/dataset.inputs.jsonl \
+  --frontend dependency \
+  --dependency-hints build/evaluation/dataset.dependency-hints.jsonl \
+  --output build/evaluation/dependency-predictions.jsonl
+```
+
+The legacy 5/7-field `open-batch` TSV shape is unchanged; the dependency
+frontend adds three trailing columns (`hole_role`, `governing_lemma`,
+`dep_status`). A target that the parse places inside a noun-phrase modifier
+(e.g. the possessor in "Tolstoy's books") rather than in a direct clause
+argument position abstains with `nested-modifier-unsupported` instead of
+guessing a role — this is a deliberate scope boundary of the current checked
+construction vocabulary, not a parser failure, and the abstention rate for
+that specific reason is a direct measure of how much residual gap is
+attributable to it. A parser failure on a given sentence degrades that row
+to the legacy frontend rather than producing a worse result than the
+baseline. Score the resulting predictions file exactly like the legacy one
+(below); commit results as a separate, parallel summary file
+(e.g. `evaluation/wimcor-dependency-frontend-summary.json`) rather than
+overwriting the existing legacy baselines, so the two frontends remain
+independently comparable.
+
 ## Score the complete experiment
 
 ```bash

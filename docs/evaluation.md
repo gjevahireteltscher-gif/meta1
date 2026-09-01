@@ -120,6 +120,18 @@ open-domain classifier. The harness should therefore evaluate:
 Statistical ranking or LLM reordering may sit outside the trusted kernel and
 must not establish formal admissibility.
 
+The open-domain corpus frontend that proposes candidates for this harness is
+itself swappable without touching the trusted kernel: `run_engine_predictions.py
+--frontend {legacy,dependency}` selects between the original positional
+string heuristic and an offline Universal Dependencies parse
+(`scripts/annotate_dependency_hints.py`); both route through the same
+compiled Agda `runtimeCheck`. Comparing the two frontends' recall/precision
+at fixed, unchanged safety guarantees — rather than reporting only one
+frontend's numbers — is the intended way to attribute the residual gap
+between coverage and the checked construction vocabulary. See
+`evaluation/README.md`'s "UD dependency-hint frontend" section for the
+commands.
+
 SemEval itself cannot measure endpoint correctness or contraction safety
 because it contains neither explicit referents nor safe-forgetting labels.
 Those numbers are therefore reported only for independently adjudicated

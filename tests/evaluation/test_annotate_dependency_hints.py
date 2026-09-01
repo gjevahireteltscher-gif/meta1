@@ -1,0 +1,249 @@
+from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from annotate_dependency_hints import (  # noqa: E402
+    annotate,
+    annotate_row,
+    classify_word,
+    find_governing_structure,
+)
+
+
+class FakeToken:
+    def __init__(self, start_char: int, end_char: int) -> None:
+        self.start_char = start_char
+        self.end_char = end_char
+
+
+class FakeWord:
+    def __init__(
+        self,
+        word_id: int,
+        text: str,
+        lemma: str,
+        upos: str,
+        deprel: str,
+        head: int,
+        start_char: int,
+        end_char: int,
+    ) -> None:
+        self.id = word_id
+        self.text = text
+        self.lemma = lemma
+        self.upos = upos
+        self.deprel = deprel
+        self.head = head
+        self.parent = FakeToken(start_char, end_char)
+
+
+class FakeSentence:
+    def __init__(self, words: list[FakeWord]) -> None:
+        self.words = words
+
+
+class FakeDocument:
+    def __init__(self, sentences: list[FakeSentence]) -> None:
+        self.sentences = sentences
+
+
+def moscow_signed_document() -> FakeDocument:
+    # "Moscow signed the agreement"
+    #  0     7      14  18
+    words = [
+        FakeWord(1, "Moscow", "Moscow", "PROPN", "nsubj", 2, 0, 6),
+        FakeWord(2, "signed", "sign", "VERB", "root", 0, 7, 13),
+        FakeWord(3, "the", "the", "DET", "det", 4, 14, 17),
+        FakeWord(4, "agreement", "agreement", "NOUN", "obj", 2, 18, 27),
+    ]
+    return FakeDocument([FakeSentence(words)])
+
+
+class ClassifyWordTests(unittest.TestCase):
+    def test_subject_of_a_verb_is_a_direct_argument(self) -> None:
+        document = moscow_signed_document()
+        sentence = document.sentences[0]
+        target_word = sentence.words[0]
+        self.assertEqual(
+            classify_word(sentence, target_word),
+            ("direct-argument", "Subject", "sign"),
+        )
+
+    def test_object_of_a_verb_is_a_direct_argument(self) -> None:
+        document = moscow_signed_document()
+        sentence = document.sentences[0]
+        target_word = sentence.words[3]
+        self.assertEqual(
+            classify_word(sentence, target_word),
+            ("direct-argument", "Object", "sign"),
+        )
+
+    def test_oblique_with_case_child_reconstructs_a_phrasal_verb_lemma(self) -> None:
+        # "The teenager listened to Mozart"
+        #  0   4        13       22 25
+        words = [
+            FakeWord(1, "The", "the", "DET", "det", 2, 0, 3),
+            FakeWord(2, "teenager", "teenager", "NOUN", "nsubj", 3, 4, 12),
+            FakeWord(3, "listened", "listen", "VERB", "root", 0, 13, 21),
+            FakeWord(4, "to", "to", "ADP", "case", 5, 22, 24),
+            FakeWord(5, "Mozart", "Mozart", "PROPN", "obl", 3, 25, 31),
+        ]
+        sentence = FakeSentence(words)
+        self.assertEqual(
+            classify_word(sentence, words[4]),
+            ("direct-argument", "Object", "listen to"),
+        )
+
+    def test_nested_possessive_modifier_is_not_a_direct_argument(self) -> None:
+        # "Anna reads Tolstoy's books"
+        words = [
+            FakeWord(1, "Anna", "Anna", "PROPN", "nsubj", 2, 0, 4),
+            FakeWord(2, "reads", "read", "VERB", "root", 0, 5, 10),
+            FakeWord(3, "Tolstoy", "Tolstoy", "PROPN", "nmod:poss", 5, 11, 18),
+            FakeWord(4, "'s", "'s", "PART", "case", 3, 18, 20),
+            FakeWord(5, "books", "book", "NOUN", "obj", 2, 21, 26),
+        ]
+        sentence = FakeSentence(words)
+        self.assertEqual(
+            classify_word(sentence, words[2]),
+            ("nested-modifier", "", ""),
+        )
+
+    def test_no_governing_verb_for_an_unhandled_relation(self) -> None:
+        words = [
+            FakeWord(1, "Yesterday", "yesterday", "ADV", "advmod", 2, 0, 9),
+            FakeWord(2, "left", "leave", "VERB", "root", 0, 10, 14),
+        ]
+        sentence = FakeSentence(words)
+        self.assertEqual(
+            classify_word(sentence, words[0]),
+            ("no-governing-verb", "", ""),
+        )
+
+
+class FindGoverningStructureTests(unittest.TestCase):
+    def test_single_token_span_resolves_directly(self) -> None:
+        document = moscow_signed_document()
+        self.assertEqual(
+            find_governing_structure(document, 0, 6),
+            ("direct-argument", "Subject", "sign"),
+        )
+
+    def test_multi_token_span_resolves_to_the_phrase_internal_root(self) -> None:
+        # "Anna visited New York"
+        #  0    5       14  18
+        words = [
+            FakeWord(1, "Anna", "Anna", "PROPN", "nsubj", 2, 0, 4),
+            FakeWord(2, "visited", "visit", "VERB", "root", 0, 5, 12),
+            FakeWord(3, "New", "New", "PROPN", "compound", 4, 13, 16),
+            FakeWord(4, "York", "York", "PROPN", "obj", 2, 17, 21),
+        ]
+        document = FakeDocument([FakeSentence(words)])
+        self.assertEqual(
+            find_governing_structure(document, 13, 21),
+            ("direct-argument", "Object", "visit"),
+        )
+
+    def test_span_with_no_covering_token_is_a_parse_error(self) -> None:
+        document = moscow_signed_document()
+        self.assertEqual(
+            find_governing_structure(document, 100, 110),
+            ("parse-error", "", ""),
+        )
+
+
+class AnnotateRowTests(unittest.TestCase):
+    def test_span_not_matching_target_text_is_a_parse_error_without_parsing(
+        self,
+    ) -> None:
+        calls: list[str] = []
+
+        def pipeline(text: str) -> FakeDocument:
+            calls.append(text)
+            return moscow_signed_document()
+
+        row = {
+            "id": "wimcor:test:0",
+            "text": "Moscow signed the agreement",
+            "target": "Moscow",
+            "target_span": [7, 13],  # actually covers "signed", not "Moscow"
+        }
+        self.assertEqual(
+            annotate_row(pipeline, row),
+            {
+                "id": "wimcor:test:0",
+                "dep_status": "parse-error",
+                "hole_role": "",
+                "governing_lemma": "",
+            },
+        )
+        self.assertEqual(calls, [])
+
+    def test_valid_row_resolves_through_the_pipeline(self) -> None:
+        row = {
+            "id": "wimcor:test:1",
+            "text": "Moscow signed the agreement",
+            "target": "Moscow",
+            "target_span": [0, 6],
+        }
+        result = annotate_row(lambda text: moscow_signed_document(), row)
+        self.assertEqual(
+            result,
+            {
+                "id": "wimcor:test:1",
+                "dep_status": "direct-argument",
+                "hole_role": "Subject",
+                "governing_lemma": "sign",
+            },
+        )
+
+    def test_pipeline_exception_degrades_to_parse_error(self) -> None:
+        def failing_pipeline(text: str) -> FakeDocument:
+            raise RuntimeError("boom")
+
+        row = {
+            "id": "wimcor:test:2",
+            "text": "Moscow signed the agreement",
+            "target": "Moscow",
+            "target_span": [0, 6],
+        }
+        result = annotate_row(failing_pipeline, row)
+        self.assertEqual(result["dep_status"], "parse-error")
+
+
+class AnnotateCachingTests(unittest.TestCase):
+    def test_identical_sentence_text_is_parsed_only_once(self) -> None:
+        calls: list[str] = []
+
+        def pipeline(text: str) -> FakeDocument:
+            calls.append(text)
+            return moscow_signed_document()
+
+        rows = [
+            {
+                "id": "wimcor:test:0",
+                "text": "Moscow signed the agreement",
+                "target": "Moscow",
+                "target_span": [0, 6],
+            },
+            {
+                "id": "wimcor:test:1",
+                "text": "Moscow signed the agreement",
+                "target": "agreement",
+                "target_span": [18, 27],
+            },
+        ]
+        hints = list(annotate(pipeline, rows))
+        self.assertEqual(len(hints), 2)
+        self.assertEqual(calls, ["Moscow signed the agreement"])
+        self.assertEqual(hints[0]["hole_role"], "Subject")
+        self.assertEqual(hints[1]["hole_role"], "Object")
+
+
+if __name__ == "__main__":
+    unittest.main()

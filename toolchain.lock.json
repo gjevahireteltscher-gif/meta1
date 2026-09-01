@@ -49,5 +49,14 @@
     "instances": 6000,
     "sha256": "cd692d6953bb719bb6aeb0ac13df7c3641564918c38cf39ad15bcf20c8b76d90",
     "redistributed": false
+  },
+  "stanza": {
+    "package_version": "1.14.0",
+    "sdist_sha256": "edd1eb171d34bea920c4d06d3f007a2232a63991f20f398370204ca3ddc8287f",
+    "wheel_sha256": "b5e81d742e39671de146e69f3c6ca7ff76cc4201ed07cab3083d815b2cbab544",
+    "ud_package": "ewt",
+    "resources_manifest": "resources_1.14.0.json",
+    "note": "Per-processor model file integrity (MD5) is checked by Stanza's own downloader against its resources manifest at this pinned package version; not independently re-pinned here. Used only by the research/evaluation-only dependency-hint frontend (scripts/annotate_dependency_hints.py), not by the certified Agda/GF pipeline.",
+    "redistributed": false
   }
 }

@@ -77,6 +77,30 @@ the pinned source under its Apache-2.0/Wikipedia CC-BY-SA terms. The selection
 is independent for detection and bridge-family labels, but ConMeC does not
 provide explicit endpoint QIDs.
 
+## Stanza / Universal Dependencies English EWT (dependency-hint frontend)
+
+`scripts/annotate_dependency_hints.py` uses the `stanza` package (pinned in
+`toolchain.lock.json` to version `1.14.0`, Apache-2.0) with `package="ewt"`,
+selecting the models trained on the Universal Dependencies English Web
+Treebank. This is a research/evaluation-only preprocessor for the open-domain
+corpus frontend (`engine/src/Metonymy/OpenDomain.hs`'s
+`analyzeOpenAtWithDependencyHint`); it is not part of the certified Agda/GF
+pipeline and does not affect `make test`/`scripts/reproduce.sh`.
+
+The UD English-EWT treebank itself (the training data behind the pinned
+`ewt` models) is distributed under **CC BY-SA 4.0** — unlike the CC0/BSD-clear
+sources above, this carries attribution and share-alike obligations for any
+redistributed artifact directly derived from the treebank data. The Stanza
+model *weights* trained on it are covered by Stanza's own Apache-2.0 license;
+consult <https://universaldependencies.org/> and
+<https://github.com/UniversalDependencies/UD_English-EWT> before redistributing
+any treebank-derived artifact (as opposed to the model weights themselves).
+
+Model downloads are not committed to this repository and are not fetched by
+the default `scripts/bootstrap.sh` path, so the base reproducibility
+guarantee (`make test`) never depends on network access to Stanza's model
+registry. See `docs/evaluation.md` for the opt-in install step.
+
 ## Endpoint linker snapshot
 
 `entity-link-snapshot.tsv` is a small, independently maintained CC0

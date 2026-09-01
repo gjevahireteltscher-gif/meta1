@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from score_predictions import ABLATIONS, read_jsonl
@@ -99,24 +100,55 @@ def predict(engine: Path, row: dict, ablation: str) -> dict:
     }
 
 
+def open_batch_row_fields(row: dict) -> list[str]:
+    span = row.get("target_span", row.get("target_spans", [[0, 0]])[0])
+    return [
+        row["id"],
+        "wimcor" if row["source"] == "wimcor-v1.1" else "conmec",
+        row.get("category", "LOCATION"),
+        row["target"].replace("\t", " ").replace("\n", " "),
+        str(span[0]),
+        str(span[1]),
+        row["text"].replace("\t", " ").replace("\n", " "),
+    ]
+
+
 def predict_open_batch(
-    engine: Path, rows: list[dict], ablation: str
+    engine: Path,
+    rows: list[dict],
+    ablation: str,
+    frontend: str = "legacy",
+    dependency_hints: dict[str, dict] | None = None,
 ) -> dict[str, dict]:
-    payload = "".join(
-        "\t".join(
-            [
-                row["id"],
-                "wimcor" if row["source"] == "wimcor-v1.1" else "conmec",
-                row.get("category", "LOCATION"),
-                row["target"].replace("\t", " ").replace("\n", " "),
-                str(row.get("target_span", row.get("target_spans", [[0, 0]])[0])[0]),
-                str(row.get("target_span", row.get("target_spans", [[0, 0]])[0])[1]),
-                row["text"].replace("\t", " ").replace("\n", " "),
-            ]
-        )
-        + "\n"
-        for row in rows
-    )
+    """Run one ablation over ``rows`` through ``open-batch``.
+
+    ``frontend="legacy"`` (the default) builds exactly the 7-field TSV rows
+    this function has always produced, so existing evaluation runs stay
+    byte-for-byte reproducible. ``frontend="dependency"`` appends the three
+    UD-parser-derived columns from ``dependency_hints`` (see
+    scripts/annotate_dependency_hints.py); a row missing a hint falls back
+    to the legacy 7-field shape for that one instance, with a warning, so a
+    partial hints file degrades gracefully rather than crashing the batch.
+    """
+    lines = []
+    for row in rows:
+        fields = open_batch_row_fields(row)
+        if frontend == "dependency":
+            hint = (dependency_hints or {}).get(row["id"])
+            if hint is None:
+                print(
+                    f"warning: no dependency hint for {row['id']!r}, "
+                    "falling back to the legacy frontend for this row",
+                    file=sys.stderr,
+                )
+            else:
+                fields = fields + [
+                    hint.get("hole_role", ""),
+                    hint.get("governing_lemma", ""),
+                    hint["dep_status"],
+                ]
+        lines.append("\t".join(fields))
+    payload = "".join(line + "\n" for line in lines)
     process = subprocess.run(
         [str(engine), "open-batch", ablation],
         input=payload,
@@ -161,9 +193,33 @@ def main() -> None:
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--allow-gold-input", action="store_true")
+    parser.add_argument(
+        "--frontend",
+        choices=["legacy", "dependency"],
+        default="legacy",
+        help=(
+            "legacy: today's positional string-heuristic open-domain "
+            "frontend (default, unchanged). dependency: use UD-parser "
+            "hints from --dependency-hints (see "
+            "scripts/annotate_dependency_hints.py) instead."
+        ),
+    )
+    parser.add_argument(
+        "--dependency-hints",
+        type=Path,
+        help="dependency-hints.jsonl produced by annotate_dependency_hints.py; "
+        "required when --frontend dependency is used",
+    )
     arguments = parser.parse_args()
+    if arguments.frontend == "dependency" and arguments.dependency_hints is None:
+        raise SystemExit("--frontend dependency requires --dependency-hints")
     if not arguments.engine.exists():
         raise SystemExit(f"engine does not exist: {arguments.engine}")
+    dependency_hints: dict[str, dict] = {}
+    if arguments.dependency_hints is not None:
+        dependency_hints = {
+            hint["id"]: hint for hint in read_jsonl(arguments.dependency_hints)
+        }
     dataset = read_jsonl(arguments.dataset)
     forbidden = {"gold", "gold_fine", "gold_bridge", "explicit_target"}
     if not arguments.allow_gold_input:
@@ -186,7 +242,11 @@ def main() -> None:
     if open_rows:
         for ablation in sorted(ABLATIONS):
             for identifier, prediction in predict_open_batch(
-                arguments.engine, open_rows, ablation
+                arguments.engine,
+                open_rows,
+                ablation,
+                frontend=arguments.frontend,
+                dependency_hints=dependency_hints,
             ).items():
                 batched[(identifier, ablation)] = prediction
     arguments.output.parent.mkdir(parents=True, exist_ok=True)

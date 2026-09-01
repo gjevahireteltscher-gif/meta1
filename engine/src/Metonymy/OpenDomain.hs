@@ -4,11 +4,14 @@ module Metonymy.OpenDomain
   , OpenDecision (..)
   , EndpointProposal (..)
   , ActionRoleIndex
+  , DependencyStatus (..)
+  , DependencyHint (..)
   , buildActionRoleIndex
   , loadEndpointSnapshot
   , analyzeOpen
   , analyzeOpenAt
   , analyzeOpenAtWithEndpoints
+  , analyzeOpenAtWithDependencyHint
   , openFamilyName
   ) where
 
@@ -129,6 +132,72 @@ analyzeOpenAt actionRoles base hint target suppliedSpan sentence
   = analyzeOpenAtWithEndpoints
       builtinEndpoints actionRoles base hint target suppliedSpan sentence
 
+-- | The three checks that must pass before any candidate search runs, for
+-- either the legacy string-heuristic frontend or the dependency-hint
+-- frontend. Factored out so both share identical abstention behavior.
+openGuardFailure ::
+  Maybe (Int, Int) ->
+  String ->
+  String ->
+  Maybe OpenDecision
+openGuardFailure suppliedSpan target sentence
+  | null normalizedTarget =
+      Just (OpenAbstain "empty-target")
+  | normalizedTarget `notElemPhrase` normalizedSentence =
+      Just (OpenAbstain "target-not-found")
+  | not (validSpan suppliedSpan target sentence) =
+      Just (OpenAbstain "invalid-target-span")
+  | otherwise =
+      Nothing
+  where
+    normalizedTarget = normalize target
+    normalizedSentence = " " <> normalize sentence <> " "
+
+-- | Shared candidate-search core: given an already-computed list of action
+-- role candidates (from whichever frontend proposed them), try each typed
+-- rewrite and fall back to the legacy family-trigger heuristic. Guard
+-- checks are the caller's responsibility (see 'openGuardFailure').
+analyzeOpenCore ::
+  [EndpointProposal] ->
+  KnowledgeBase ->
+  DatasetHint ->
+  String ->
+  Maybe (Int, Int) ->
+  String ->
+  [ActionRoleRequirement] ->
+  OpenDecision
+analyzeOpenCore
+  endpointSnapshot base hint target suppliedSpan sentence candidateRoles =
+  case
+      [ decision
+      | role <- candidateRoles
+      , Just decision <-
+          [ buildTypedRewrite
+              endpointSnapshot base hint triggerWindow target role
+          ]
+      ]
+    of
+    decision : _ -> decision
+    [] ->
+      case chooseFamily hint triggerWindow of
+        Nothing -> OpenLiteral
+        Just family ->
+          buildRewrite
+            base
+            family
+            target
+            (lookupEndpoint endpointSnapshot family target)
+  where
+    triggerWindow =
+      " "
+        <> normalize
+          (case suppliedSpan of
+             Nothing -> sentence
+             Just (start, _) ->
+               take 96 (drop (max 0 (start - 72)) sentence)
+          )
+        <> " "
+
 analyzeOpenAtWithEndpoints ::
   [EndpointProposal] ->
   ActionRoleIndex ->
@@ -139,45 +208,115 @@ analyzeOpenAtWithEndpoints ::
   String ->
   OpenDecision
 analyzeOpenAtWithEndpoints
-  endpointSnapshot actionRoles base hint target suppliedSpan sentence
-  | null normalizedTarget =
-      OpenAbstain "empty-target"
-  | normalizedTarget `notElemPhrase` normalizedSentence =
-      OpenAbstain "target-not-found"
-  | not (validSpan suppliedSpan target sentence) =
-      OpenAbstain "invalid-target-span"
-  | otherwise =
-      case
-          [ decision
-          | role <- chooseActionRoles actionRoles target sentence
-          , Just decision <-
-              [ buildTypedRewrite
-                  endpointSnapshot base hint triggerWindow target role
-              ]
-          ]
-        of
-        decision : _ -> decision
-        [] ->
-          case chooseFamily hint triggerWindow of
-            Nothing -> OpenLiteral
-            Just family ->
-              buildRewrite
-                base
-                family
-                target
-                (lookupEndpoint endpointSnapshot family target)
+  endpointSnapshot actionRoles base hint target suppliedSpan sentence =
+  case openGuardFailure suppliedSpan target sentence of
+    Just failure -> failure
+    Nothing ->
+      analyzeOpenCore
+        endpointSnapshot base hint target suppliedSpan sentence
+        (chooseActionRoles actionRoles target sentence)
+
+-- | The outcome of compiling a corpus target occurrence through the
+-- offline UD dependency-parser preprocessor (see
+-- @scripts/annotate_dependency_hints.py@), rather than through the legacy
+-- positional string heuristic.
+data DependencyStatus
+  = -- | The target is itself the subject or object of a governing verb.
+    DirectArgument
+  | -- | The target is a modifier inside a noun phrase (e.g. the
+    -- possessor in \"Tolstoy's books\") rather than a clause argument.
+    -- Deliberately unsupported until the checked construction vocabulary
+    -- (@Elaborator.hs@'s @PositiveGFTree@) is widened; never silently
+    -- treated as a direct argument.
+    NestedModifier
+  | -- | The target has no identifiable governing verb in the parse.
+    NoGoverningVerb
+  | -- | The dependency parser failed or its output could not be aligned
+    -- to the supplied character span.
+    ParseError
+  deriving stock (Eq, Show, Read)
+
+-- | An untrusted structural proposal for one target occurrence, produced
+-- offline by a UD dependency parser. Like every other candidate in this
+-- module, it is only ever a proposal: 'runtimeCheck' independently
+-- re-derives admissibility and does not depend on how the candidate was
+-- found.
+data DependencyHint = DependencyHint
+  { dependencyStatus :: DependencyStatus
+  , dependencyHoleRole :: Maybe HoleRole
+    -- ^ 'Nothing' unless 'dependencyStatus' is 'DirectArgument'.
+  , dependencyGoverningLemma :: Maybe String
+    -- ^ 'Nothing' unless 'dependencyStatus' is 'DirectArgument'. May be a
+    -- multi-word phrasal lemma (e.g. @"listen to"@) matching an
+    -- 'ActionRoleIndex' key built by 'buildActionRoleIndex'.
+  }
+  deriving stock (Eq, Show)
+
+-- | The dependency-hint analogue of 'chooseActionRoles': look up the
+-- governing lemma directly instead of guessing it from token n-grams, and
+-- filter to roles whose hole matches the parser-derived role.
+chooseActionRolesFromDependency ::
+  ActionRoleIndex ->
+  DependencyHint ->
+  [ActionRoleRequirement]
+chooseActionRolesFromDependency index hint =
+  case (dependencyHoleRole hint, dependencyGoverningLemma hint) of
+    (Just hole, Just lemma) ->
+      sortOn
+        roleRank
+        [ role
+        | role <- Map.findWithDefault [] (normalize lemma) index
+        , actionHoleRole role == hole
+        ]
+    _ -> []
   where
-    normalizedTarget = normalize target
-    normalizedSentence = " " <> normalize sentence <> " "
-    triggerWindow =
-      " "
-        <> normalize
-          (case suppliedSpan of
-             Nothing -> sentence
-             Just (start, _) ->
-               take 96 (drop (max 0 (start - 72)) sentence)
-          )
-        <> " "
+    -- Same hard-before-preference precedence as 'chooseActionRoles';
+    -- there is no positional distance to rank on here since the
+    -- dependency parse identifies the governing verb exactly rather than
+    -- by proximity.
+    roleRank role =
+      ( case actionStrength role of
+          HardRequirement -> 0 :: Int
+          SelectionalPreference -> 1
+      , actionId role
+      )
+
+-- | Analyze one target occurrence using a UD-parser-derived
+-- 'DependencyHint' instead of the legacy positional heuristic.
+--
+-- * A parser failure ('ParseError') degrades wholesale to
+--   'analyzeOpenAtWithEndpoints', so a dependency-frontend run is never
+--   worse than the legacy baseline on sentences the parser could not
+--   handle.
+-- * A 'NestedModifier' target is a distinct, explicit abstention rather
+--   than a fallback to the family-trigger heuristic: 'buildRewrite'
+--   unconditionally assigns 'SubjectHole' to its candidate
+--   (see @certificateHoleRole = SubjectHole@ below), which would silently
+--   reintroduce exactly the unjustified role assignment this frontend
+--   exists to remove.
+analyzeOpenAtWithDependencyHint ::
+  [EndpointProposal] ->
+  ActionRoleIndex ->
+  KnowledgeBase ->
+  DatasetHint ->
+  String ->
+  Maybe (Int, Int) ->
+  DependencyHint ->
+  String ->
+  OpenDecision
+analyzeOpenAtWithDependencyHint
+  endpointSnapshot actionRoles base hint target suppliedSpan dep sentence
+  | dependencyStatus dep == ParseError =
+      analyzeOpenAtWithEndpoints
+        endpointSnapshot actionRoles base hint target suppliedSpan sentence
+  | Just failure <- openGuardFailure suppliedSpan target sentence =
+      failure
+  | dependencyStatus dep == NestedModifier =
+      OpenAbstain "nested-modifier-unsupported"
+  | otherwise =
+      analyzeOpenCore
+        endpointSnapshot base hint target suppliedSpan sentence
+        (chooseActionRolesFromDependency actionRoles dep)
 
 validSpan :: Maybe (Int, Int) -> String -> String -> Bool
 validSpan Nothing _ _ = True
