@@ -48,6 +48,7 @@ formal-artifact: formal
 checker:
 	mkdir -p build/agda
 	$(AGDA) $(AGDA_RTS) --safe --compile --no-main --compile-dir=build/agda \
+		--ghc-flag=-Wno-star-is-type \
 		-i formal formal/Metonymy/Checker.agda
 	python3 scripts/generate_malonzo_api.py \
 		--source build/agda/MAlonzo/Code/Metonymy/Checker.hs \
