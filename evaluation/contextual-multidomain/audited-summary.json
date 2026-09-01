@@ -18,7 +18,7 @@
     "Requires (HasSort BusinessOrganization)@sign commercial agreement": 0,
     "Requires (HasSort Readable)@read": 0,
     "RequiresRelation Conducts Q413@announce programme in physics": 0,
-    "RequiresSome Conducts (HasSort ScientificDiscipline)@announce programme": 0,
+    "RequiresSome Conducts (HasSort ScientificDiscipline)@announce programme": 1,
     "graph-related": 0
   },
   "empty_fiber_rate": {
@@ -77,10 +77,11 @@
     "4": 5
   },
   "obstruction_distribution": {
+    "MissingRelated": 1,
     "MissingRequirement": 1
   },
   "preference_match_rate": {
-    "denominator": 2,
+    "denominator": 3,
     "numerator": 2
   }
 }
