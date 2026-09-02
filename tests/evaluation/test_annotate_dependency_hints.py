@@ -9,9 +9,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from annotate_dependency_hints import (  # noqa: E402
     annotate,
-    annotate_row,
     classify_word,
     find_governing_structure,
+    validate_row,
 )
 
 
@@ -157,53 +157,95 @@ class FindGoverningStructureTests(unittest.TestCase):
         )
 
 
-class AnnotateRowTests(unittest.TestCase):
-    def test_span_not_matching_target_text_is_a_parse_error_without_parsing(
-        self,
-    ) -> None:
-        calls: list[str] = []
+class ValidateRowTests(unittest.TestCase):
+    def test_valid_row_returns_text_and_span(self) -> None:
+        row = {
+            "id": "wimcor:test:0",
+            "text": "Moscow signed the agreement",
+            "target": "Moscow",
+            "target_span": [0, 6],
+        }
+        self.assertEqual(validate_row(row), ("Moscow signed the agreement", 0, 6))
 
-        def pipeline(text: str) -> FakeDocument:
-            calls.append(text)
-            return moscow_signed_document()
+    def test_span_not_matching_target_text_is_invalid(self) -> None:
+        row = {
+            "id": "wimcor:test:1",
+            "text": "Moscow signed the agreement",
+            "target": "Moscow",
+            "target_span": [7, 13],  # actually covers "signed", not "Moscow"
+        }
+        self.assertIsNone(validate_row(row))
+
+    def test_missing_text_or_span_is_invalid(self) -> None:
+        self.assertIsNone(
+            validate_row({"id": "x", "text": "", "target": "Moscow", "target_span": [0, 1]})
+        )
+        self.assertIsNone(
+            validate_row({"id": "x", "text": "Moscow signed", "target": "Moscow"})
+        )
+
+
+class AnnotateTests(unittest.TestCase):
+    """``annotate`` batches every distinct valid sentence text through one
+    (or a few) calls to a batch-callable pipeline, per Stanza's own
+    guidance that calling the pipeline once per short text is very slow --
+    see the module docstring. These tests use a batch-callable
+    ``pipeline_batch(texts: list[str]) -> list[FakeDocument]`` mock rather
+    than a real Stanza pipeline.
+    """
+
+    def test_span_not_matching_target_is_a_parse_error_without_parsing(self) -> None:
+        calls: list[list[str]] = []
+
+        def pipeline_batch(texts: list[str]) -> list[FakeDocument]:
+            calls.append(list(texts))
+            return [moscow_signed_document() for _ in texts]
 
         row = {
             "id": "wimcor:test:0",
             "text": "Moscow signed the agreement",
             "target": "Moscow",
-            "target_span": [7, 13],  # actually covers "signed", not "Moscow"
+            "target_span": [7, 13],
         }
+        hints = list(annotate(pipeline_batch, [row]))
         self.assertEqual(
-            annotate_row(pipeline, row),
-            {
-                "id": "wimcor:test:0",
-                "dep_status": "parse-error",
-                "hole_role": "",
-                "governing_lemma": "",
-            },
+            hints,
+            [
+                {
+                    "id": "wimcor:test:0",
+                    "dep_status": "parse-error",
+                    "hole_role": "",
+                    "governing_lemma": "",
+                }
+            ],
         )
-        self.assertEqual(calls, [])
+        self.assertEqual(calls, [])  # nothing valid to parse, pipeline never called
 
     def test_valid_row_resolves_through_the_pipeline(self) -> None:
+        def pipeline_batch(texts: list[str]) -> list[FakeDocument]:
+            return [moscow_signed_document() for _ in texts]
+
         row = {
             "id": "wimcor:test:1",
             "text": "Moscow signed the agreement",
             "target": "Moscow",
             "target_span": [0, 6],
         }
-        result = annotate_row(lambda text: moscow_signed_document(), row)
+        hints = list(annotate(pipeline_batch, [row]))
         self.assertEqual(
-            result,
-            {
-                "id": "wimcor:test:1",
-                "dep_status": "direct-argument",
-                "hole_role": "Subject",
-                "governing_lemma": "sign",
-            },
+            hints,
+            [
+                {
+                    "id": "wimcor:test:1",
+                    "dep_status": "direct-argument",
+                    "hole_role": "Subject",
+                    "governing_lemma": "sign",
+                }
+            ],
         )
 
-    def test_pipeline_exception_degrades_to_parse_error(self) -> None:
-        def failing_pipeline(text: str) -> FakeDocument:
+    def test_batch_pipeline_exception_degrades_that_batch_to_parse_error(self) -> None:
+        def failing_pipeline(texts: list[str]) -> list[FakeDocument]:
             raise RuntimeError("boom")
 
         row = {
@@ -212,17 +254,15 @@ class AnnotateRowTests(unittest.TestCase):
             "target": "Moscow",
             "target_span": [0, 6],
         }
-        result = annotate_row(failing_pipeline, row)
-        self.assertEqual(result["dep_status"], "parse-error")
+        hints = list(annotate(failing_pipeline, [row]))
+        self.assertEqual(hints[0]["dep_status"], "parse-error")
 
-
-class AnnotateCachingTests(unittest.TestCase):
     def test_identical_sentence_text_is_parsed_only_once(self) -> None:
-        calls: list[str] = []
+        calls: list[list[str]] = []
 
-        def pipeline(text: str) -> FakeDocument:
-            calls.append(text)
-            return moscow_signed_document()
+        def pipeline_batch(texts: list[str]) -> list[FakeDocument]:
+            calls.append(list(texts))
+            return [moscow_signed_document() for _ in texts]
 
         rows = [
             {
@@ -238,11 +278,55 @@ class AnnotateCachingTests(unittest.TestCase):
                 "target_span": [18, 27],
             },
         ]
-        hints = list(annotate(pipeline, rows))
+        hints = list(annotate(pipeline_batch, rows))
         self.assertEqual(len(hints), 2)
-        self.assertEqual(calls, ["Moscow signed the agreement"])
+        self.assertEqual(calls, [["Moscow signed the agreement"]])
         self.assertEqual(hints[0]["hole_role"], "Subject")
         self.assertEqual(hints[1]["hole_role"], "Object")
+
+    def test_batch_size_chunks_distinct_texts(self) -> None:
+        calls: list[list[str]] = []
+
+        def pipeline_batch(texts: list[str]) -> list[FakeDocument]:
+            calls.append(list(texts))
+            return [moscow_signed_document() for _ in texts]
+
+        rows = [
+            {
+                "id": f"wimcor:test:{index}",
+                "text": f"Moscow signed the agreement {index}",
+                "target": "Moscow",
+                "target_span": [0, 6],
+            }
+            for index in range(3)
+        ]
+        list(annotate(pipeline_batch, rows, batch_size=2))
+        self.assertEqual([len(chunk) for chunk in calls], [2, 1])
+
+    def test_progress_callback_receives_batch_counts(self) -> None:
+        progress: list[tuple[int, int]] = []
+
+        def pipeline_batch(texts: list[str]) -> list[FakeDocument]:
+            return [moscow_signed_document() for _ in texts]
+
+        rows = [
+            {
+                "id": f"wimcor:test:{index}",
+                "text": f"Moscow signed the agreement {index}",
+                "target": "Moscow",
+                "target_span": [0, 6],
+            }
+            for index in range(3)
+        ]
+        list(
+            annotate(
+                pipeline_batch,
+                rows,
+                batch_size=2,
+                on_progress=lambda done, total: progress.append((done, total)),
+            )
+        )
+        self.assertEqual(progress, [(1, 2), (2, 2)])
 
 
 if __name__ == "__main__":

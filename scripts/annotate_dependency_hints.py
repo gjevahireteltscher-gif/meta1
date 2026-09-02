@@ -20,12 +20,20 @@ Output schema, one object per input row keyed by ``id``:
 
 ``hole_role`` and ``governing_lemma`` are non-empty only when
 ``dep_status == "direct-argument"``.
+
+Sentences are parsed in batches (see ``annotate``/``--batch-size``), not one
+``pipeline(text)`` call per row: Stanza's own documentation warns that
+calling the pipeline once per short text is very slow on CPU, since each
+call pays fixed per-call overhead instead of letting the neural processors
+batch across many sentences at once. Pass a list of ``stanza.Document``
+objects to the pipeline in one call to get that batching.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator
 
@@ -66,8 +74,10 @@ NESTED_MODIFIER_DEPRELS = {
 }
 
 OPEN_DOMAIN_SOURCES = {"wimcor-v1.1", "conmec"}
+DEFAULT_BATCH_SIZE = 500
 
 Hint = dict[str, str]
+ValidatedRow = tuple[str, int, int]
 
 
 def classify_word(sentence: Any, word: Any) -> tuple[str, str, str]:
@@ -142,59 +152,102 @@ def find_governing_structure(
     return ("parse-error", "", "")
 
 
-def annotate_row(pipeline: Callable[[str], Any], row: dict) -> Hint:
+def validate_row(row: dict) -> ValidatedRow | None:
+    """Return ``(text, start, end)`` if the row's span is trustworthy.
+
+    Mirrors OpenDomain.hs's ``validSpan`` check: never trust parser output
+    against an offset that does not actually cover the target string in
+    this exact text. Pure and parser-independent, so invalid rows are
+    filtered out before anything is sent to Stanza.
+    """
     text = row.get("text")
     target = row.get("target")
     span = row.get("target_span", row.get("target_spans", [None])[0])
     if not text or not target or span is None:
-        return {
-            "id": row["id"],
-            "dep_status": "parse-error",
-            "hole_role": "",
-            "governing_lemma": "",
-        }
+        return None
     start, end = span
-    # Mirrors OpenDomain.hs's validSpan check: never trust parser output
-    # against an offset that does not actually cover the target string in
-    # this exact text.
     if text[start:end] != target:
-        return {
-            "id": row["id"],
-            "dep_status": "parse-error",
-            "hole_role": "",
-            "governing_lemma": "",
-        }
-    try:
-        document = pipeline(text)
-        status, hole_role, lemma = find_governing_structure(document, start, end)
-    except Exception:  # noqa: BLE001 - any parser failure degrades to legacy
-        status, hole_role, lemma = ("parse-error", "", "")
-    return {
-        "id": row["id"],
-        "dep_status": status,
-        "hole_role": hole_role,
-        "governing_lemma": lemma,
+        return None
+    return text, start, end
+
+
+def annotate(
+    pipeline_batch: Callable[[list[str]], list[Any]],
+    rows: Iterable[dict],
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> Iterator[Hint]:
+    """Annotate every row, parsing distinct sentence texts in batches.
+
+    Several rows (different targets/categories) can share the same source
+    sentence, and processing many short texts one at a time is very slow
+    on CPU (see the module docstring), so this collects every distinct
+    valid text once, parses them ``batch_size`` at a time via
+    ``pipeline_batch``, and only then walks the rows to classify each
+    target against its (already parsed) sentence.
+    """
+    rows = list(rows)
+    validated: dict[str, ValidatedRow | None] = {
+        row["id"]: validate_row(row) for row in rows
     }
 
+    unique_texts: list[str] = []
+    seen_texts: set[str] = set()
+    for result in validated.values():
+        if result is not None and result[0] not in seen_texts:
+            seen_texts.add(result[0])
+            unique_texts.append(result[0])
 
-def annotate(pipeline: Callable[[str], Any], rows: Iterable[dict]) -> Iterator[Hint]:
-    # One parse per distinct sentence text, not per row: several instances
-    # (different targets/categories) can share the same source sentence.
-    cache: dict[str, Any] = {}
-
-    def cached_pipeline(text: str) -> Any:
-        if text not in cache:
-            cache[text] = pipeline(text)
-        return cache[text]
+    documents: dict[str, Any] = {}
+    total_batches = (len(unique_texts) + batch_size - 1) // batch_size or 1
+    for batch_index, start_index in enumerate(
+        range(0, len(unique_texts), batch_size), start=1
+    ):
+        chunk = unique_texts[start_index : start_index + batch_size]
+        try:
+            parsed = pipeline_batch(chunk)
+        except Exception:  # noqa: BLE001 - a batch failure degrades to parse-error
+            parsed = [None] * len(chunk)
+        for text, document in zip(chunk, parsed):
+            documents[text] = document
+        if on_progress is not None:
+            on_progress(batch_index, total_batches)
 
     for row in rows:
-        yield annotate_row(cached_pipeline, row)
+        result = validated[row["id"]]
+        if result is None:
+            yield {
+                "id": row["id"],
+                "dep_status": "parse-error",
+                "hole_role": "",
+                "governing_lemma": "",
+            }
+            continue
+        text, start, end = result
+        document = documents.get(text)
+        if document is None:
+            status, hole_role, lemma = ("parse-error", "", "")
+        else:
+            try:
+                status, hole_role, lemma = find_governing_structure(
+                    document, start, end
+                )
+            except Exception:  # noqa: BLE001 - malformed parse -> parse-error
+                status, hole_role, lemma = ("parse-error", "", "")
+        yield {
+            "id": row["id"],
+            "dep_status": status,
+            "hole_role": hole_role,
+            "governing_lemma": lemma,
+        }
 
 
-def build_pipeline() -> Callable[[str], Any]:
-    """Build the pinned UD English-EWT pipeline (see
-    scripts/bootstrap_dependency_frontend.sh and toolchain.lock.json's
-    "stanza" entry for the exact pinned versions and model provenance).
+def build_pipeline() -> Callable[[list[str]], list[Any]]:
+    """Build the pinned UD English-EWT pipeline as a batch-callable: pass a
+    list of texts, get back a list of parsed ``stanza.Document`` objects in
+    the same order (see scripts/bootstrap_dependency_frontend.sh and
+    toolchain.lock.json's "stanza" entry for the exact pinned versions and
+    model provenance).
     """
     import os
 
@@ -211,13 +264,24 @@ def build_pipeline() -> Callable[[str], Any]:
         verbose=False,
         **kwargs,
     )
-    return nlp
+
+    def run_batch(texts: list[str]) -> list[Any]:
+        return nlp([stanza.Document([], text=text) for text in texts])
+
+    return run_batch
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help="how many distinct sentences to parse per pipeline call "
+        f"(default: {DEFAULT_BATCH_SIZE})",
+    )
     arguments = parser.parse_args()
 
     rows = [
@@ -226,9 +290,19 @@ def main() -> None:
         if row.get("source") in OPEN_DOMAIN_SOURCES
     ]
     pipeline = build_pipeline()
+
+    def report_progress(batch_index: int, total_batches: int) -> None:
+        print(
+            f"annotate_dependency_hints: parsed batch {batch_index}/{total_batches}",
+            file=sys.stderr,
+            flush=True,
+        )
+
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     with arguments.output.open("w", encoding="utf-8") as handle:
-        for hint in annotate(pipeline, rows):
+        for hint in annotate(
+            pipeline, rows, batch_size=arguments.batch_size, on_progress=report_progress
+        ):
             handle.write(json.dumps(hint, sort_keys=True) + "\n")
 
 
