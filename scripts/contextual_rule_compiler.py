@@ -31,6 +31,7 @@ ARITIES = {
     "Pred": 2,
     "NegPred": 2,
     "Compl": 2,
+    "PassCompl": 2,
     "InPP": 1,
     "AboutPP": 1,
     "WithPP": 1,
@@ -79,6 +80,15 @@ def third_person(lemma: str) -> str:
     else:
         wanted = lemma + "s"
     return wanted if wanted in candidates else lemma
+
+
+def regular_participle(lemma: str) -> str:
+    """Regular "-ed" past-participle form, for the default passive gf_form.
+
+    Irregular verbs need an explicit ``passive_gf_form`` morphology
+    override; this is only ever a fallback, same as ``third_person``.
+    """
+    return lemma[:-1] + "ed" if lemma.endswith("e") else lemma + "ed"
 
 
 def load_action_roles(
@@ -275,6 +285,12 @@ def resolve_action(
     ).hexdigest()[:16]
     strength = "hard" if hard else "selectional-preference"
     override = morphology_overrides.get(selected.lemma, {})
+    voice = dependency_hint.get("voice") if dependency_hint else None
+    gf_form = (
+        "is " + override.get("passive_gf_form", regular_participle(selected.lemma))
+        if voice == "passive"
+        else override.get("gf_form", third_person(selected.lemma))
+    )
     return {
         "lemma": selected.lemma,
         "surface": sentence[start:end],
@@ -293,7 +309,8 @@ def resolve_action(
             }
             for identity, provenance, source_strength, source_requirement in evidence
         ],
-        "gf_form": override.get("gf_form", third_person(selected.lemma)),
+        "gf_form": gf_form,
+        "voice": voice or "active",
     }
 
 
@@ -416,13 +433,13 @@ def compile_gf_constraints(
     gf_actions = gf_actions or {}
     gf_nouns = gf_nouns or {}
 
-    def first_node(node: GFNode | str, constructor: str) -> GFNode | None:
+    def first_node(node: GFNode | str, constructors: set[str]) -> GFNode | None:
         if not isinstance(node, GFNode):
             return None
-        if node.constructor == constructor:
+        if node.constructor in constructors:
             return node
         for argument in node.arguments:
-            found = first_node(argument, constructor)
+            found = first_node(argument, constructors)
             if found:
                 return found
         return None
@@ -438,7 +455,17 @@ def compile_gf_constraints(
             return lexical_head(node.arguments[0])
         return node
 
-    complement = first_node(root, "Compl")
+    # PassCompl's second argument is the "by"-agent NP, not a grammatical
+    # object -- but it is analyzed exactly like Compl's object here: when
+    # it is the metonymy target itself (a bare proper noun, whichever hole
+    # role that is for), _noun_lemma/gf_nouns naturally fail to resolve a
+    # common-noun lemma for it below and this block is a no-op, same
+    # protection Compl already relies on for the ObjectHole/target-as-
+    # object case. When it is a separate common-noun argument, deriving a
+    # FrameArgument capability constraint from it is equally valid
+    # regardless of whether that argument is textually the object or the
+    # agent.
+    complement = first_node(root, {"Compl", "PassCompl"})
     if complement and len(complement.arguments) == 2:
         object_node = complement.arguments[1]
         head = lexical_head(object_node)

@@ -169,6 +169,43 @@ per action or scenario. `data/contextual-language-rules.json` now retains only
 irregular morphology overrides and sort-level bridge, composition, and
 construction schemas.
 
+### Passive voice
+
+`Metonymy.gf`/`MetonymyEng.gf` add `PassCompl : V2 -> NP -> VP`, linearized
+via the RGL's `PassAgentVPSlash (SlashV2a verb) agent` (from `Extend`/
+`ExtendEng`) and predicated with the existing `Pred : NP -> VP -> S` --
+the passive clause's grammatical subject (semantically the patient) fills
+the same slot an active subject does; no new `S`-level rule was needed.
+`scripts/annotate_dependency_hints.py` reports a passive subject
+(`nsubj:pass`) as `hole_role="Object"` (it is the patient, not the agent)
+and the "by"-agent phrase (`obl` + `case="by"` on a verb with an
+`aux:pass` child) as `hole_role="Subject"`, both with a `voice="passive"`
+field and a governing span covering the auxiliary too ("was captured",
+not just "captured"). `resolve_action` uses that to substitute a full
+present-passive form ("is captured") rather than the active third-person
+form, always assuming a singular subject -- the same implicit convention
+the existing active-voice substitution already relies on (a genuine
+plural/collective subject is out of scope here; see below).
+
+This is the one part of this session's changes that cannot be verified
+locally: there is no GF toolchain on this development machine, so the
+grammar edit and the RGL function names (confirmed against the pinned
+`gf-rgl` commit's actual source, not guessed) are unverified until
+`make test`/`make formal-artifact` run in CI or the `.cursor` container.
+The Python-side dependency-hint classification, `resolve_action`'s
+`gf_form` selection, and `compile_gf_constraints`' handling of a
+`PassCompl` tree node are all covered by local unit tests against
+hand-built inputs (`tests/evaluation/test_compile_gf_constraints_passive.py`
+and the passive cases in `test_annotate_dependency_hints.py`/
+`test_resolve_action_dependency_hint.py`), independent of whether the
+grammar itself compiles.
+
+Deliberately out of scope for this pass: plural/collective subjects
+(a "the players" bridge onto one collective entity, staying inside the
+accepted one-entity-per-hole boundary), tense/aspect beyond present, and
+further PP/modifier stacking beyond what the existing recursive
+`ModifyNP` walker already handles structurally.
+
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 WordNet now projects `political`, `commercial`, `educational`, and
 `scientific` as modifier sorts. The composition matrix covers agreement,

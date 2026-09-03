@@ -1,5 +1,5 @@
 concrete MetonymyEng of Metonymy =
-  open SyntaxEng, ParadigmsEng, (R=ResEng) in {
+  open SyntaxEng, ExtendEng, ParadigmsEng, (R=ResEng) in {
 
   lincat
     S = S ;
@@ -13,6 +13,7 @@ concrete MetonymyEng of Metonymy =
     Pred np vp = mkS (mkCl np vp) ;
     NegPred np vp = mkS negativePol (mkCl np vp) ;
     Compl verb object = mkVP verb object ;
+    PassCompl verb agent = PassAgentVPSlash (SlashV2a verb) agent ;
     InPP np = SyntaxEng.mkAdv in_Prep np ;
     AboutPP np = SyntaxEng.mkAdv (mkPrep "about") np ;
     WithPP np = SyntaxEng.mkAdv (mkPrep "with") np ;

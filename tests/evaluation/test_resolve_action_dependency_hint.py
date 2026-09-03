@@ -134,6 +134,109 @@ class ResolveActionDependencyHintTests(unittest.TestCase):
         self.assertEqual(legacy, hinted)
 
 
+PASSIVE_SENTENCE = "The city was captured by Napoleon"
+PASSIVE_VERB_START = PASSIVE_SENTENCE.index("was captured")
+PASSIVE_VERB_END = PASSIVE_VERB_START + len("was captured")
+
+PASSIVE_ROLES = [
+    ActionRole(
+        lemma="capture",
+        hole_role="SubjectHole",
+        requirement="HasSort Military",
+        strength="HardRequirement",
+        provenance="test",
+        identity="test:capture:subject",
+    ),
+    ActionRole(
+        lemma="capture",
+        hole_role="ObjectHole",
+        requirement="HasSort Place",
+        strength="HardRequirement",
+        provenance="test",
+        identity="test:capture:object",
+    ),
+]
+
+
+class PassiveGfFormTests(unittest.TestCase):
+    def test_passive_agent_hint_produces_a_present_passive_gf_form(self) -> None:
+        hint = {
+            "dep_status": "direct-argument",
+            "hole_role": "Subject",
+            "governing_lemma": "capture",
+            "governing_start": PASSIVE_VERB_START,
+            "governing_end": PASSIVE_VERB_END,
+            "voice": "passive",
+        }
+        result = resolve_action(
+            PASSIVE_SENTENCE, ["Napoleon"], PASSIVE_ROLES, {}, dependency_hint=hint
+        )
+        self.assertEqual(result["role"], "SubjectHole")
+        self.assertEqual(result["gf_form"], "is captured")
+        self.assertEqual(result["surface"], "was captured")
+        self.assertEqual(result["voice"], "passive")
+
+    def test_passive_patient_hint_gets_the_same_verb_form_as_the_agent_hint(
+        self,
+    ) -> None:
+        # The target here is the grammatical (passive) subject, i.e. the
+        # patient -- gf_form only encodes the verb's own morphology, which
+        # is identical regardless of which argument the metonymy target is.
+        hint = {
+            "dep_status": "direct-argument",
+            "hole_role": "Object",
+            "governing_lemma": "capture",
+            "governing_start": PASSIVE_VERB_START,
+            "governing_end": PASSIVE_VERB_END,
+            "voice": "passive",
+        }
+        result = resolve_action(
+            PASSIVE_SENTENCE, ["city"], PASSIVE_ROLES, {}, dependency_hint=hint
+        )
+        self.assertEqual(result["role"], "ObjectHole")
+        self.assertEqual(result["gf_form"], "is captured")
+
+    def test_active_voice_hint_is_unaffected_by_the_passive_gf_form_path(self) -> None:
+        hint = {
+            "dep_status": "direct-argument",
+            "hole_role": "Subject",
+            "governing_lemma": "praise",
+            "governing_start": VERB_START,
+            "governing_end": VERB_END,
+            "voice": "active",
+        }
+        result = resolve_action(SENTENCE, ["Tolstoy"], ROLES, {}, dependency_hint=hint)
+        self.assertEqual(result["gf_form"], "praises")
+        self.assertEqual(result["voice"], "active")
+
+    def test_irregular_participle_uses_the_morphology_override(self) -> None:
+        roles = [
+            ActionRole(
+                lemma="write",
+                hole_role="SubjectHole",
+                requirement="HasSort Person",
+                strength="HardRequirement",
+                provenance="test",
+                identity="test:write:subject",
+            ),
+        ]
+        sentence = "The play was written by Tolstoy"
+        start = sentence.index("was written")
+        end = start + len("was written")
+        hint = {
+            "dep_status": "direct-argument",
+            "hole_role": "Subject",
+            "governing_lemma": "write",
+            "governing_start": start,
+            "governing_end": end,
+            "voice": "passive",
+        }
+        overrides = {"write": {"passive_gf_form": "written"}}
+        result = resolve_action(
+            sentence, ["Tolstoy"], roles, overrides, dependency_hint=hint
+        )
+        self.assertEqual(result["gf_form"], "is written")
+
 class _FakeToken:
     def __init__(self, start_char: int, end_char: int) -> None:
         self.start_char = start_char

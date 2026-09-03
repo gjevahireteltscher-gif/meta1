@@ -13,6 +13,7 @@ abstract Metonymy = {
     Pred : NP -> VP -> S ;
     NegPred : NP -> VP -> S ;
     Compl : V2 -> NP -> VP ;
+    PassCompl : V2 -> NP -> VP ;
     InPP : NP -> PP ;
     AboutPP : NP -> PP ;
     WithPP : NP -> PP ;
