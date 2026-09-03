@@ -80,7 +80,7 @@
       "relation": "About",
       "target_slot": "modifier",
       "strength": "SelectionalPreference",
-      "provenance": "FrameNet:Topic+construction:head-about-topic:v1"
+      "provenance": "FrameNet:Topic:Topic+construction:head-about-topic:v1"
     },
     {
       "construction": "ModifyNP+WithPP",
@@ -88,7 +88,7 @@
       "relation": "AffiliatedWith",
       "target_slot": "modifier",
       "strength": "SelectionalPreference",
-      "provenance": "FrameNet:Partner+construction:agreement-with-party:v1"
+      "provenance": "FrameNet:Sign_agreement:Co-participant+construction:agreement-with-party:v1"
     },
     {
       "construction": "ModifyNP+ForPP",
@@ -96,7 +96,7 @@
       "relation": "About",
       "target_slot": "modifier",
       "strength": "SelectionalPreference",
-      "provenance": "FrameNet:Purpose+construction:head-for-beneficiary:v1"
+      "provenance": "FrameNet:Purpose:Goal+construction:head-for-beneficiary:v1"
     },
     {
       "construction": "ModifyNP+InPP",

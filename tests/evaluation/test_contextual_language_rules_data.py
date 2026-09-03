@@ -129,24 +129,38 @@ class ProvenanceHonestyTests(unittest.TestCase):
 
     REAL_FRAME_FE = {
         ("Sign_agreement", "Signatory"),
+        ("Sign_agreement", "Co-participant"),
         ("Statement", "Speaker"),
         ("Reading_perception", "Reader"),
+        ("Topic", "Topic"),
+        ("Purpose", "Goal"),
     }
 
-    def test_every_framenet_provenance_cites_a_verified_frame_and_fe(self) -> None:
+    def _check(self, provenance: str, label: str) -> None:
+        if not provenance.startswith("FrameNet:"):
+            return
+        framenet_part = provenance.split("+", 1)[0]
+        _, frame, fe, *rest = framenet_part.split(":")
+        self.assertIn(
+            (frame, fe),
+            self.REAL_FRAME_FE,
+            f"{label}: {frame}:{fe} is not a verified FrameNet frame/FE "
+            "pair (see data/SOURCES.md)",
+        )
+
+    def test_every_action_object_requirement_cites_a_verified_frame_and_fe(
+        self,
+    ) -> None:
         for action, entries in LANGUAGE_RULES["action_object_requirements"].items():
             for result_sort, rule in entries.items():
-                provenance = rule["provenance"]
-                if not provenance.startswith("FrameNet:"):
-                    continue
-                framenet_part = provenance.split("+local:", 1)[0]
-                _, frame, fe, *rest = framenet_part.split(":")
-                self.assertIn(
-                    (frame, fe),
-                    self.REAL_FRAME_FE,
-                    f"{action}.{result_sort}: {frame}:{fe} is not a verified "
-                    "FrameNet frame/FE pair (see data/SOURCES.md)",
-                )
+                self._check(rule["provenance"], f"{action}.{result_sort}")
+
+    def test_every_context_template_cites_a_verified_frame_and_fe(self) -> None:
+        for index, template in enumerate(LANGUAGE_RULES["context_templates"]):
+            self._check(
+                template["provenance"],
+                f"context_templates[{index}] ({template['construction']})",
+            )
 
     def test_narrowed_sorts_are_explicitly_tagged_local(self) -> None:
         # Any requirement stricter than the base HasSort Agent/Organization
