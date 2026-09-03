@@ -71,7 +71,7 @@ class ClassifyWordTests(unittest.TestCase):
         target_word = sentence.words[0]
         self.assertEqual(
             classify_word(sentence, target_word),
-            ("direct-argument", "Subject", "sign", 7, 13),
+            ("direct-argument", "Subject", "sign", 7, 13, "active"),
         )
 
     def test_object_of_a_verb_is_a_direct_argument(self) -> None:
@@ -80,7 +80,7 @@ class ClassifyWordTests(unittest.TestCase):
         target_word = sentence.words[3]
         self.assertEqual(
             classify_word(sentence, target_word),
-            ("direct-argument", "Object", "sign", 7, 13),
+            ("direct-argument", "Object", "sign", 7, 13, "active"),
         )
 
     def test_oblique_with_case_child_reconstructs_a_phrasal_verb_lemma(self) -> None:
@@ -96,7 +96,7 @@ class ClassifyWordTests(unittest.TestCase):
         sentence = FakeSentence(words)
         self.assertEqual(
             classify_word(sentence, words[4]),
-            ("direct-argument", "Object", "listen to", 13, 24),
+            ("direct-argument", "Object", "listen to", 13, 24, "active"),
         )
 
     def test_nested_possessive_modifier_is_not_a_direct_argument(self) -> None:
@@ -111,7 +111,7 @@ class ClassifyWordTests(unittest.TestCase):
         sentence = FakeSentence(words)
         self.assertEqual(
             classify_word(sentence, words[2]),
-            ("nested-modifier", "", "", None, None),
+            ("nested-modifier", "", "", None, None, "active"),
         )
 
     def test_no_governing_verb_for_an_unhandled_relation(self) -> None:
@@ -122,7 +122,56 @@ class ClassifyWordTests(unittest.TestCase):
         sentence = FakeSentence(words)
         self.assertEqual(
             classify_word(sentence, words[0]),
-            ("no-governing-verb", "", "", None, None),
+            ("no-governing-verb", "", "", None, None, "active"),
+        )
+
+    def test_passive_subject_is_the_object_hole_not_the_subject_hole(self) -> None:
+        # "Waterloo was captured by Napoleon"
+        #  0        11  15       26 29
+        words = [
+            FakeWord(1, "Waterloo", "Waterloo", "PROPN", "nsubj:pass", 3, 0, 8),
+            FakeWord(2, "was", "be", "AUX", "aux:pass", 3, 9, 12),
+            FakeWord(3, "captured", "capture", "VERB", "root", 0, 13, 21),
+            FakeWord(4, "by", "by", "ADP", "case", 5, 22, 24),
+            FakeWord(5, "Napoleon", "Napoleon", "PROPN", "obl", 3, 25, 33),
+        ]
+        sentence = FakeSentence(words)
+        self.assertEqual(
+            classify_word(sentence, words[0]),
+            ("direct-argument", "Object", "capture", 9, 21, "passive"),
+        )
+
+    def test_passive_by_agent_is_the_subject_hole(self) -> None:
+        words = [
+            FakeWord(1, "Waterloo", "Waterloo", "PROPN", "nsubj:pass", 3, 0, 8),
+            FakeWord(2, "was", "be", "AUX", "aux:pass", 3, 9, 12),
+            FakeWord(3, "captured", "capture", "VERB", "root", 0, 13, 21),
+            FakeWord(4, "by", "by", "ADP", "case", 5, 22, 24),
+            FakeWord(5, "Napoleon", "Napoleon", "PROPN", "obl", 3, 25, 33),
+        ]
+        sentence = FakeSentence(words)
+        self.assertEqual(
+            classify_word(sentence, words[4]),
+            ("direct-argument", "Subject", "capture", 9, 21, "passive"),
+        )
+
+    def test_oblique_by_phrase_without_aux_pass_is_not_treated_as_passive(
+        self,
+    ) -> None:
+        # "The teenager listened by the radio" -- "by" oblique but the verb
+        # is active (no aux:pass sibling), so this must NOT be misread as a
+        # passive agent; it degrades to the ordinary phrasal-verb path.
+        words = [
+            FakeWord(1, "The", "the", "DET", "det", 2, 0, 3),
+            FakeWord(2, "teenager", "teenager", "NOUN", "nsubj", 3, 4, 12),
+            FakeWord(3, "listened", "listen", "VERB", "root", 0, 13, 21),
+            FakeWord(4, "by", "by", "ADP", "case", 5, 22, 24),
+            FakeWord(5, "radio", "radio", "NOUN", "obl", 3, 29, 34),
+        ]
+        sentence = FakeSentence(words)
+        self.assertEqual(
+            classify_word(sentence, words[4]),
+            ("direct-argument", "Object", "listen by", 13, 24, "active"),
         )
 
 
@@ -131,7 +180,7 @@ class FindGoverningStructureTests(unittest.TestCase):
         document = moscow_signed_document()
         self.assertEqual(
             find_governing_structure(document, 0, 6),
-            ("direct-argument", "Subject", "sign", 7, 13),
+            ("direct-argument", "Subject", "sign", 7, 13, "active"),
         )
 
     def test_multi_token_span_resolves_to_the_phrase_internal_root(self) -> None:
@@ -146,14 +195,14 @@ class FindGoverningStructureTests(unittest.TestCase):
         document = FakeDocument([FakeSentence(words)])
         self.assertEqual(
             find_governing_structure(document, 13, 21),
-            ("direct-argument", "Object", "visit", 5, 12),
+            ("direct-argument", "Object", "visit", 5, 12, "active"),
         )
 
     def test_span_with_no_covering_token_is_a_parse_error(self) -> None:
         document = moscow_signed_document()
         self.assertEqual(
             find_governing_structure(document, 100, 110),
-            ("parse-error", "", "", None, None),
+            ("parse-error", "", "", None, None, "active"),
         )
 
 
@@ -254,6 +303,7 @@ class AnnotateTests(unittest.TestCase):
                     "governing_lemma": "",
                     "governing_start": None,
                     "governing_end": None,
+                    "voice": "active",
                 }
             ],
         )
@@ -280,6 +330,7 @@ class AnnotateTests(unittest.TestCase):
                     "governing_lemma": "sign",
                     "governing_start": 7,
                     "governing_end": 13,
+                    "voice": "active",
                 }
             ],
         )
