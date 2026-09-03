@@ -71,7 +71,7 @@ class ClassifyWordTests(unittest.TestCase):
         target_word = sentence.words[0]
         self.assertEqual(
             classify_word(sentence, target_word),
-            ("direct-argument", "Subject", "sign"),
+            ("direct-argument", "Subject", "sign", 7, 13),
         )
 
     def test_object_of_a_verb_is_a_direct_argument(self) -> None:
@@ -80,7 +80,7 @@ class ClassifyWordTests(unittest.TestCase):
         target_word = sentence.words[3]
         self.assertEqual(
             classify_word(sentence, target_word),
-            ("direct-argument", "Object", "sign"),
+            ("direct-argument", "Object", "sign", 7, 13),
         )
 
     def test_oblique_with_case_child_reconstructs_a_phrasal_verb_lemma(self) -> None:
@@ -96,7 +96,7 @@ class ClassifyWordTests(unittest.TestCase):
         sentence = FakeSentence(words)
         self.assertEqual(
             classify_word(sentence, words[4]),
-            ("direct-argument", "Object", "listen to"),
+            ("direct-argument", "Object", "listen to", 13, 24),
         )
 
     def test_nested_possessive_modifier_is_not_a_direct_argument(self) -> None:
@@ -111,7 +111,7 @@ class ClassifyWordTests(unittest.TestCase):
         sentence = FakeSentence(words)
         self.assertEqual(
             classify_word(sentence, words[2]),
-            ("nested-modifier", "", ""),
+            ("nested-modifier", "", "", None, None),
         )
 
     def test_no_governing_verb_for_an_unhandled_relation(self) -> None:
@@ -122,7 +122,7 @@ class ClassifyWordTests(unittest.TestCase):
         sentence = FakeSentence(words)
         self.assertEqual(
             classify_word(sentence, words[0]),
-            ("no-governing-verb", "", ""),
+            ("no-governing-verb", "", "", None, None),
         )
 
 
@@ -131,7 +131,7 @@ class FindGoverningStructureTests(unittest.TestCase):
         document = moscow_signed_document()
         self.assertEqual(
             find_governing_structure(document, 0, 6),
-            ("direct-argument", "Subject", "sign"),
+            ("direct-argument", "Subject", "sign", 7, 13),
         )
 
     def test_multi_token_span_resolves_to_the_phrase_internal_root(self) -> None:
@@ -146,14 +146,14 @@ class FindGoverningStructureTests(unittest.TestCase):
         document = FakeDocument([FakeSentence(words)])
         self.assertEqual(
             find_governing_structure(document, 13, 21),
-            ("direct-argument", "Object", "visit"),
+            ("direct-argument", "Object", "visit", 5, 12),
         )
 
     def test_span_with_no_covering_token_is_a_parse_error(self) -> None:
         document = moscow_signed_document()
         self.assertEqual(
             find_governing_structure(document, 100, 110),
-            ("parse-error", "", ""),
+            ("parse-error", "", "", None, None),
         )
 
 
@@ -180,9 +180,45 @@ class ValidateRowTests(unittest.TestCase):
         self.assertIsNone(
             validate_row({"id": "x", "text": "", "target": "Moscow", "target_span": [0, 1]})
         )
+        # No target_span at all, and "Moscow" is genuinely absent from the
+        # text -- the word-boundary fallback must not match anything.
         self.assertIsNone(
-            validate_row({"id": "x", "text": "Moscow signed", "target": "Moscow"})
+            validate_row({"id": "x", "text": "Anna reads Tolstoy", "target": "Moscow"})
         )
+
+    def test_missing_span_falls_back_to_word_boundary_match(self) -> None:
+        # The contextual-tower corpus format (evaluation/contextual-multidomain/)
+        # supplies only a plain mention string, no character span --
+        # mirrors scripts/contextual_rule_compiler.py's _mention_span.
+        row = {
+            "id": "ctx:0",
+            "text": "Waterloo announced a new research programme",
+            "target": "Waterloo",
+        }
+        self.assertEqual(
+            validate_row(row),
+            ("Waterloo announced a new research programme", 0, 8),
+        )
+
+    def test_fallback_match_is_case_insensitive_and_word_bounded(self) -> None:
+        row = {"id": "ctx:1", "text": "the waterloo team won", "target": "Waterloo"}
+        self.assertEqual(validate_row(row), ("the waterloo team won", 4, 12))
+        # "Water" must not match inside "Waterloo" (word-boundary required).
+        row_partial = {"id": "ctx:2", "text": "the waterloo team won", "target": "Water"}
+        self.assertIsNone(validate_row(row_partial))
+
+    def test_alternate_field_names(self) -> None:
+        row = {
+            "id": "ctx:3",
+            "sentence": "Waterloo announced a new research programme",
+            "source": "Waterloo",
+        }
+        self.assertEqual(
+            validate_row(row, text_field="sentence", target_field="source"),
+            ("Waterloo announced a new research programme", 0, 8),
+        )
+        # Default field names do not see these rows at all.
+        self.assertIsNone(validate_row(row))
 
 
 class AnnotateTests(unittest.TestCase):
@@ -216,6 +252,8 @@ class AnnotateTests(unittest.TestCase):
                     "dep_status": "parse-error",
                     "hole_role": "",
                     "governing_lemma": "",
+                    "governing_start": None,
+                    "governing_end": None,
                 }
             ],
         )
@@ -240,6 +278,8 @@ class AnnotateTests(unittest.TestCase):
                     "dep_status": "direct-argument",
                     "hole_role": "Subject",
                     "governing_lemma": "sign",
+                    "governing_start": 7,
+                    "governing_end": 13,
                 }
             ],
         )
@@ -327,6 +367,25 @@ class AnnotateTests(unittest.TestCase):
             )
         )
         self.assertEqual(progress, [(1, 2), (2, 2)])
+
+    def test_alternate_field_names_reach_the_pipeline(self) -> None:
+        # The contextual-tower corpus shape: {"sentence", "source"}, no span.
+        def pipeline_batch(texts: list[str]) -> list[FakeDocument]:
+            return [moscow_signed_document() for _ in texts]
+
+        row = {
+            "id": "ctx:0",
+            "sentence": "Moscow signed the agreement",
+            "source": "Moscow",
+        }
+        hints = list(
+            annotate(
+                pipeline_batch, [row], text_field="sentence", target_field="source"
+            )
+        )
+        self.assertEqual(hints[0]["dep_status"], "direct-argument")
+        self.assertEqual(hints[0]["hole_role"], "Subject")
+        self.assertEqual(hints[0]["governing_lemma"], "sign")
 
 
 if __name__ == "__main__":

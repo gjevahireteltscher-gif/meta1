@@ -16,10 +16,27 @@ Output schema, one object per input row keyed by ``id``:
     {"id": ..., "dep_status": "direct-argument" | "nested-modifier"
                               | "no-governing-verb" | "parse-error",
      "hole_role": "Subject" | "Object" | "",
-     "governing_lemma": "<verb lemma>" | "<verb lemma> <preposition>" | ""}
+     "governing_lemma": "<verb lemma>" | "<verb lemma> <preposition>" | "",
+     "governing_start": <int or null>, "governing_end": <int or null>}
 
-``hole_role`` and ``governing_lemma`` are non-empty only when
-``dep_status == "direct-argument"``.
+``hole_role``, ``governing_lemma``, ``governing_start`` and
+``governing_end`` are non-empty/non-null only when
+``dep_status == "direct-argument"``. ``governing_start``/``governing_end``
+are the governing word's own absolute character span in the input text
+(covering the case-marking preposition too for a reconstructed phrasal
+verb) -- needed by consumers that substitute a canonical verb form back
+into the sentence (e.g. scripts/contextual_rule_compiler.py's
+``resolve_action``, which builds a GF-parseable sentence this way); the
+open-domain frontend consuming ``hole_role``/``governing_lemma`` alone
+does not need them.
+
+This module works on two input shapes: rows with an explicit
+``target_span``/``target_spans`` (the open-domain corpus format, offsets
+computed by scripts/evaluation/prepare_wimcor.py etc.) are validated
+strictly against that exact span; rows with only a plain mention string
+(e.g. the contextual-tower corpus format's ``source``/``target`` field,
+no span) fall back to the first case-insensitive word-boundary match,
+mirroring scripts/contextual_rule_compiler.py's own ``_mention_span``.
 
 Sentences are parsed in batches (see ``annotate``/``--batch-size``), not one
 ``pipeline(text)`` call per row: Stanza's own documentation warns that
@@ -33,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator
@@ -76,30 +94,52 @@ NESTED_MODIFIER_DEPRELS = {
 OPEN_DOMAIN_SOURCES = {"wimcor-v1.1", "conmec"}
 DEFAULT_BATCH_SIZE = 500
 
-Hint = dict[str, str]
+Hint = dict[str, "str | int | None"]
 ValidatedRow = tuple[str, int, int]
 
 
-def classify_word(sentence: Any, word: Any) -> tuple[str, str, str]:
+ClassifyResult = tuple[str, str, str, "int | None", "int | None"]
+
+
+def classify_word(sentence: Any, word: Any) -> ClassifyResult:
     """Classify one target word given its UD parent sentence.
 
     ``sentence`` must expose ``.words`` (a list of word-like objects with
-    ``.id``, ``.head``, ``.deprel``, ``.upos``, ``.lemma``, ``.text``);
-    ``word`` is the target word itself. Duck-typed so tests can pass plain
-    stand-in objects instead of real Stanza objects.
+    ``.id``, ``.head``, ``.deprel``, ``.upos``, ``.lemma``, ``.text``, and a
+    ``.parent`` exposing ``.start_char``/``.end_char``); ``word`` is the
+    target word itself. Duck-typed so tests can pass plain stand-in objects
+    instead of real Stanza objects.
+
+    Returns ``(dep_status, hole_role, governing_lemma, governing_start,
+    governing_end)``; the last two are the governing word's own absolute
+    character span (covering the case-marking preposition too for a
+    reconstructed phrasal verb), or ``None`` when there is no governing
+    verb to report.
     """
     by_id = {candidate.id: candidate for candidate in sentence.words}
     head = by_id.get(word.head) if word.head else None
 
     if word.deprel in SUBJECT_DEPRELS:
         if head is not None and head.upos in GOVERNING_UPOS:
-            return ("direct-argument", "Subject", head.lemma)
-        return ("no-governing-verb", "", "")
+            return (
+                "direct-argument",
+                "Subject",
+                head.lemma,
+                head.parent.start_char,
+                head.parent.end_char,
+            )
+        return ("no-governing-verb", "", "", None, None)
 
     if word.deprel in OBJECT_DEPRELS:
         if head is not None and head.upos in GOVERNING_UPOS:
-            return ("direct-argument", "Object", head.lemma)
-        return ("no-governing-verb", "", "")
+            return (
+                "direct-argument",
+                "Object",
+                head.lemma,
+                head.parent.start_char,
+                head.parent.end_char,
+            )
+        return ("no-governing-verb", "", "", None, None)
 
     if word.deprel in OBLIQUE_DEPRELS:
         if head is not None and head.upos in GOVERNING_UPOS:
@@ -109,19 +149,22 @@ def classify_word(sentence: Any, word: Any) -> tuple[str, str, str]:
                 if candidate.head == word.id and candidate.deprel == "case"
             ]
             if case_children:
-                lemma = f"{head.lemma} {case_children[0].text.lower()}"
-                return ("direct-argument", "Object", lemma)
-        return ("no-governing-verb", "", "")
+                case_word = case_children[0]
+                lemma = f"{head.lemma} {case_word.text.lower()}"
+                start = min(head.parent.start_char, case_word.parent.start_char)
+                end = max(head.parent.end_char, case_word.parent.end_char)
+                return ("direct-argument", "Object", lemma, start, end)
+        return ("no-governing-verb", "", "", None, None)
 
     if word.deprel in NESTED_MODIFIER_DEPRELS:
-        return ("nested-modifier", "", "")
+        return ("nested-modifier", "", "", None, None)
 
-    return ("no-governing-verb", "", "")
+    return ("no-governing-verb", "", "", None, None)
 
 
 def find_governing_structure(
     document: Any, start: int, end: int
-) -> tuple[str, str, str]:
+) -> ClassifyResult:
     """Locate the target span in a parsed document and classify it.
 
     Character offsets on Stanza ``Word``/``Token`` objects are absolute
@@ -149,26 +192,41 @@ def find_governing_structure(
         ]
         target_word = roots[-1] if roots else words_in_span[-1]
         return classify_word(sentence, target_word)
-    return ("parse-error", "", "")
+    return ("parse-error", "", "", None, None)
 
 
-def validate_row(row: dict) -> ValidatedRow | None:
+def validate_row(
+    row: dict, text_field: str = "text", target_field: str = "target"
+) -> ValidatedRow | None:
     """Return ``(text, start, end)`` if the row's span is trustworthy.
 
-    Mirrors OpenDomain.hs's ``validSpan`` check: never trust parser output
-    against an offset that does not actually cover the target string in
-    this exact text. Pure and parser-independent, so invalid rows are
-    filtered out before anything is sent to Stanza.
+    With an explicit ``target_span``/``target_spans``: mirrors
+    OpenDomain.hs's ``validSpan`` check exactly -- never trust parser
+    output against an offset that does not actually cover the target
+    string in this exact text. Pure and parser-independent, so invalid
+    rows are filtered out before anything is sent to Stanza.
+
+    Without one (the contextual-tower corpus format, which only supplies a
+    mention string): falls back to the first case-insensitive
+    word-boundary match, mirroring
+    scripts/contextual_rule_compiler.py's ``_mention_span``. The match
+    itself is the source of truth here, so it is not re-checked against
+    case-sensitive equality the way an explicit span is.
     """
-    text = row.get("text")
-    target = row.get("target")
+    text = row.get(text_field)
+    target = row.get(target_field)
+    if not text or not target:
+        return None
     span = row.get("target_span", row.get("target_spans", [None])[0])
-    if not text or not target or span is None:
+    if span is not None:
+        start, end = span
+        if text[start:end] != target:
+            return None
+        return text, start, end
+    match = re.search(rf"\b{re.escape(target)}\b", text, re.IGNORECASE)
+    if match is None:
         return None
-    start, end = span
-    if text[start:end] != target:
-        return None
-    return text, start, end
+    return text, match.start(), match.end()
 
 
 def annotate(
@@ -176,6 +234,8 @@ def annotate(
     rows: Iterable[dict],
     batch_size: int = DEFAULT_BATCH_SIZE,
     on_progress: Callable[[int, int], None] | None = None,
+    text_field: str = "text",
+    target_field: str = "target",
 ) -> Iterator[Hint]:
     """Annotate every row, parsing distinct sentence texts in batches.
 
@@ -188,7 +248,7 @@ def annotate(
     """
     rows = list(rows)
     validated: dict[str, ValidatedRow | None] = {
-        row["id"]: validate_row(row) for row in rows
+        row["id"]: validate_row(row, text_field, target_field) for row in rows
     }
 
     unique_texts: list[str] = []
@@ -221,24 +281,28 @@ def annotate(
                 "dep_status": "parse-error",
                 "hole_role": "",
                 "governing_lemma": "",
+                "governing_start": None,
+                "governing_end": None,
             }
             continue
         text, start, end = result
         document = documents.get(text)
         if document is None:
-            status, hole_role, lemma = ("parse-error", "", "")
+            status, hole_role, lemma, g_start, g_end = ("parse-error", "", "", None, None)
         else:
             try:
-                status, hole_role, lemma = find_governing_structure(
+                status, hole_role, lemma, g_start, g_end = find_governing_structure(
                     document, start, end
                 )
             except Exception:  # noqa: BLE001 - malformed parse -> parse-error
-                status, hole_role, lemma = ("parse-error", "", "")
+                status, hole_role, lemma, g_start, g_end = ("parse-error", "", "", None, None)
         yield {
             "id": row["id"],
             "dep_status": status,
             "hole_role": hole_role,
             "governing_lemma": lemma,
+            "governing_start": g_start,
+            "governing_end": g_end,
         }
 
 
@@ -282,13 +346,33 @@ def main() -> None:
         help="how many distinct sentences to parse per pipeline call "
         f"(default: {DEFAULT_BATCH_SIZE})",
     )
+    parser.add_argument(
+        "--text-field",
+        default="text",
+        help="dataset field holding the full sentence text (default: text; "
+        "the contextual-tower corpus format uses 'sentence')",
+    )
+    parser.add_argument(
+        "--target-field",
+        default="target",
+        help="dataset field holding the marked mention (default: target; "
+        "the contextual-tower corpus format uses 'source')",
+    )
+    parser.add_argument(
+        "--no-source-filter",
+        action="store_true",
+        help="do not filter rows by source in "
+        f"{sorted(OPEN_DOMAIN_SOURCES)!r} -- use for datasets without a "
+        "matching 'source' field, e.g. the contextual-tower corpus format",
+    )
     arguments = parser.parse_args()
 
-    rows = [
-        row
-        for row in read_jsonl(arguments.dataset)
-        if row.get("source") in OPEN_DOMAIN_SOURCES
-    ]
+    all_rows = read_jsonl(arguments.dataset)
+    rows = (
+        all_rows
+        if arguments.no_source_filter
+        else [row for row in all_rows if row.get("source") in OPEN_DOMAIN_SOURCES]
+    )
     pipeline = build_pipeline()
 
     def report_progress(batch_index: int, total_batches: int) -> None:
@@ -301,7 +385,12 @@ def main() -> None:
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     with arguments.output.open("w", encoding="utf-8") as handle:
         for hint in annotate(
-            pipeline, rows, batch_size=arguments.batch_size, on_progress=report_progress
+            pipeline,
+            rows,
+            batch_size=arguments.batch_size,
+            on_progress=report_progress,
+            text_field=arguments.text_field,
+            target_field=arguments.target_field,
         ):
             handle.write(json.dumps(hint, sort_keys=True) + "\n")
 
