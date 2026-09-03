@@ -233,10 +233,15 @@ A pilot samples `--sample-size` candidates (not the full abstained pool)
 and scores that exact sampled subset before and after evidence (paired
 comparison via `scripts/evaluation/filter_by_ids.py` on
 `--sample-ids-output`), rather than diluting the effect across the full
-41k/6k corpus. See `.github/workflows/dependency-frontend-evaluation.yml`
-for the complete pipeline including the paired before/after scoring; it
-uploads only `evidence.tsv` (ids and entity ids, no sentence text) and
-`metrics.json` files, never the corpus text extracted into
+41k/6k corpus. This flat-pipeline scripted path is no longer run
+automatically in CI (`.github/workflows/dependency-frontend-evaluation.yml`
+was retired once the contextual tower became the target architecture --
+see `.github/workflows/contextual-tower-evaluation.yml` and
+`docs/contextual-tower.md`'s "Running WiMCor/ConMeC through the tower"
+section for its replacement); the scripts above still work standalone if
+you need to reproduce it manually. The retired workflow uploaded only
+`evidence.tsv` (ids and entity ids, no sentence text) and `metrics.json`
+files, never the corpus text extracted into
 `promotion-candidates.jsonl`.
 
 ## Score the complete experiment

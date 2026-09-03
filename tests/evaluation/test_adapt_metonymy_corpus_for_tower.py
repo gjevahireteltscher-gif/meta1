@@ -115,6 +115,64 @@ class MainCliTests(unittest.TestCase):
         self.assertEqual([row["id"] for row in sentences], ["wimcor:test:1", "wimcor:test:2"])
         self.assertEqual([row["id"] for row in golds], ["wimcor:test:1", "wimcor:test:2"])
 
+    def test_sample_size_shrinks_output_deterministically(self) -> None:
+        rows = [wimcor_style_row(id=f"wimcor:test:{index}") for index in range(50)]
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "dataset.jsonl"
+            dataset.write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+            )
+
+            def run(seed: int) -> list[str]:
+                sentences_output = Path(directory) / f"sentences-{seed}.jsonl"
+                gold_output = Path(directory) / f"gold-{seed}.jsonl"
+                sys.argv = [
+                    "adapt_metonymy_corpus_for_tower.py",
+                    "--dataset",
+                    str(dataset),
+                    "--sentences-output",
+                    str(sentences_output),
+                    "--gold-output",
+                    str(gold_output),
+                    "--sample-size",
+                    "5",
+                    "--seed",
+                    str(seed),
+                ]
+                main()
+                return [row["id"] for row in jsonl(sentences_output)]
+
+            first = run(seed=0)
+            second = run(seed=0)
+            third = run(seed=1)
+        self.assertEqual(len(first), 5)
+        self.assertEqual(first, second)  # same seed -> same sample
+        self.assertNotEqual(first, third)  # different seed -> (almost certainly) different
+
+    def test_sample_size_larger_than_dataset_keeps_everything(self) -> None:
+        rows = [wimcor_style_row(id=f"wimcor:test:{index}") for index in range(3)]
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "dataset.jsonl"
+            dataset.write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+            )
+            sentences_output = Path(directory) / "sentences.jsonl"
+            gold_output = Path(directory) / "gold.jsonl"
+            sys.argv = [
+                "adapt_metonymy_corpus_for_tower.py",
+                "--dataset",
+                str(dataset),
+                "--sentences-output",
+                str(sentences_output),
+                "--gold-output",
+                str(gold_output),
+                "--sample-size",
+                "1000",
+            ]
+            main()
+            sentences = list(jsonl(sentences_output))
+        self.assertEqual(len(sentences), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

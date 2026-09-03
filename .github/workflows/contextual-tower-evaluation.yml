@@ -1,0 +1,186 @@
+name: contextual-tower-evaluation
+
+# Manual only: this downloads WiMCor/ConMeC at runtime, links their mention
+# surfaces against the live Wikidata API into a corpus-driven snapshot, and
+# runs a sample through the contextual tower -- not something that belongs
+# on every push. Trigger from the Actions tab ("Run workflow") or
+# `gh workflow run contextual-tower-evaluation.yml`.
+#
+# WiMCor (CC BY-SA 3.0) and ConMeC (Apache-2.0) are fetched fresh into
+# /tmp/corpora for this run only -- never committed to the repo, never
+# cached, matching evaluation/README.md's "keep corpus text out of Git and
+# CI artifacts" policy. The tower is far more expensive per instance than
+# the flat pipeline (each instance is its own GF-parse + engine subprocess
+# chain, not one batched call), so this samples a bounded number of rows
+# instead of running the full corpora -- see sample_size below.
+#
+# This exercises the contextual-tower path end to end: UD dependency hints
+# (scripts/annotate_dependency_hints.py, batch-precomputed inside
+# run_contextual_corpus.py), passive-voice GF parsing where it occurs
+# naturally in the sample, live-API entity linking
+# (scripts/build_wikidata_api_index.py) instead of the small curated
+# data/wikidata-openalex-snapshot, and the WiMCor/ConMeC tower adapter +
+# detection scorer (scripts/evaluation/adapt_metonymy_corpus_for_tower.py,
+# score_contextual_detection.py). It does not touch the flat OpenDomain.hs
+# pipeline at all -- that is legacy; see docs/contextual-tower.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sample_size:
+        description: "rows to sample per corpus (WiMCor, ConMeC each)"
+        required: false
+        default: "150"
+      workers:
+        description: "parallel run_contextual_corpus.py workers"
+        required: false
+        default: "4"
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      AGDA_RTS: +RTS -M6G -RTS
+      STANZA_MODEL_DIR: /home/runner/.cache/metonymy/stanza/models
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache Cubical and GF RGL
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/metonymy/cubical-v0.5
+            ~/.cache/metonymy/gf-rgl-20260403
+            ~/.cache/metonymy/gf-rgl-lib
+          key: metonymy-${{ runner.os }}-132a2a3-e825d92-gf312
+
+      - name: Cache Stanza package and models
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/metonymy/stanza
+          key: stanza-${{ runner.os }}-${{ hashFiles('toolchain.lock.json') }}
+
+      - name: Install pinned system toolchain
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            --no-install-recommends agda-bin cabal-install curl ghc git make ripgrep
+          curl -L \
+            "https://github.com/GrammaticalFramework/gf-core/releases/download/release-3.12/gf-3.12-ubuntu-24.04.deb" \
+            -o /tmp/gf.deb
+          echo "17aa5452b713f1e00a0755a1bad998a926acbffb96eefde2c3800ca72536b4d8  /tmp/gf.deb" \
+            | sha256sum -c -
+          sudo apt-get install -y /tmp/gf.deb
+
+      - name: Build and verify (same as ci.yml)
+        run: ./scripts/reproduce.sh
+
+      - name: Install dependency-frontend toolchain (Stanza)
+        run: ./scripts/bootstrap_dependency_frontend.sh
+
+      - name: Download WiMCor v1.1 and ConMeC (not committed, not cached)
+        run: |
+          mkdir -p /tmp/corpora
+          curl -fL "https://kevinalexmathews.github.io/files/wimcor-v1.1.tar.gz" \
+            -o /tmp/corpora/wimcor-v1.1.tar.gz
+          curl -fL "https://raw.githubusercontent.com/SaptGhosh/ConMeC/main/DATASET.csv" \
+            -o /tmp/corpora/ConMeC.csv
+
+      - name: Prepare and sample datasets for the tower
+        run: |
+          python3 scripts/evaluation/prepare_wimcor.py \
+            --archive /tmp/corpora/wimcor-v1.1.tar.gz --split test \
+            --output build/evaluation/wimcor-test.combined.jsonl
+          python3 scripts/evaluation/prepare_conmec.py \
+            --csv /tmp/corpora/ConMeC.csv \
+            --output build/evaluation/conmec.combined.jsonl \
+            --quarantine build/evaluation/conmec-quarantine.json
+          for ds in wimcor-test conmec; do
+            python3 scripts/evaluation/adapt_metonymy_corpus_for_tower.py \
+              --dataset build/evaluation/$ds.combined.jsonl \
+              --sentences-output build/evaluation/$ds.tower-sentences.jsonl \
+              --gold-output build/evaluation/$ds.tower-gold.jsonl \
+              --sample-size "${{ github.event.inputs.sample_size }}" \
+              --seed 0
+          done
+          cat build/evaluation/wimcor-test.tower-sentences.jsonl \
+              build/evaluation/conmec.tower-sentences.jsonl \
+              > build/evaluation/pooled.tower-sentences.jsonl
+
+      - name: Build a corpus-driven snapshot via the live Wikidata API
+        run: |
+          python3 scripts/build_wikidata_api_index.py \
+            --database build/wikidata-api-runtime.sqlite \
+            --dataset build/evaluation/pooled.tower-sentences.jsonl \
+            --dataset-field source \
+            --depth 1 --max-entities 4000
+          python3 scripts/list_runtime_index_qids.py \
+            --database build/wikidata-api-runtime.sqlite \
+            --output build/wikidata-api-source-qids.txt
+          mapfile -t SOURCE_QIDS < build/wikidata-api-source-qids.txt
+          SOURCE_QID_ARGS=()
+          for qid in "${SOURCE_QIDS[@]}"; do
+            SOURCE_QID_ARGS+=(--source-qid "$qid")
+          done
+          python3 scripts/build_wikidata_runtime_index.py materialize \
+            --database build/wikidata-api-runtime.sqlite \
+            "${SOURCE_QID_ARGS[@]}" \
+            --depth 1 \
+            --rules data/wikidata-runtime-rules.json \
+            --output build/wikidata-tower-snapshot
+
+      - name: Run the contextual tower on the sampled corpora
+        run: |
+          for ds in wimcor-test conmec; do
+            python3 scripts/evaluation/run_contextual_corpus.py \
+              --dataset build/evaluation/$ds.tower-sentences.jsonl \
+              --engine build/metonymy \
+              --snapshot build/wikidata-tower-snapshot \
+              --workers "${{ github.event.inputs.workers }}" \
+              --allow-failures \
+              --output build/evaluation/$ds.tower-inference.jsonl
+          done
+
+      - name: Score metonymic-vs-literal detection
+        run: |
+          for ds in wimcor-test conmec; do
+            python3 scripts/evaluation/score_contextual_detection.py \
+              --inference build/evaluation/$ds.tower-inference.jsonl \
+              --gold build/evaluation/$ds.tower-gold.jsonl \
+              --output build/evaluation/$ds.tower-detection-report.json
+          done
+
+      - name: Summarize
+        run: |
+          {
+            echo "## Contextual-tower detection evaluation (sampled)"
+            echo "Sample size: ${{ github.event.inputs.sample_size }} per corpus."
+            echo "Scoring is metonymic-vs-literal detection, not exact-QID"
+            echo "match -- WiMCor/ConMeC do not annotate a specific correct"
+            echo "entity; see score_contextual_detection.py's own docstring"
+            echo "and docs/contextual-tower.md."
+            for ds in wimcor-test conmec; do
+              echo "### $ds"
+              echo '```json'
+              python3 -m json.tool "build/evaluation/$ds.tower-detection-report.json"
+              echo '```'
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload aggregate detection reports (no corpus text)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contextual-tower-evaluation-reports
+          # score_contextual_detection.py's output is confusion-matrix
+          # counts and a status-reason breakdown only -- no sentence text,
+          # no per-instance fields. run_contextual_corpus.py's own
+          # tower-inference.jsonl files carry lexicalized GF trees and
+          # failure messages that echo sentence text, so they are
+          # deliberately never uploaded as an artifact here.
+          path: build/evaluation/*.tower-detection-report.json
+          retention-days: 30

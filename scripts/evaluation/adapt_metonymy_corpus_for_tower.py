@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 
 
@@ -56,11 +57,25 @@ def main() -> None:
     parser.add_argument("--dataset", required=True, type=Path)
     parser.add_argument("--sentences-output", required=True, type=Path)
     parser.add_argument("--gold-output", required=True, type=Path)
+    parser.add_argument(
+        "--sample-size",
+        type=int,
+        help="deterministically sample this many rows instead of adapting "
+        "the whole dataset (the tower is far more expensive per instance "
+        "than the flat pipeline; sample to fit a CI time budget)",
+    )
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
+
+    rows = list(jsonl(args.dataset))
+    if args.sample_size is not None and len(rows) > args.sample_size:
+        rng = random.Random(args.seed)
+        rows = rng.sample(rows, args.sample_size)
+        rows.sort(key=lambda row: row["id"])  # deterministic output order
 
     sentences = []
     golds = []
-    for row in jsonl(args.dataset):
+    for row in rows:
         sentence_row, gold_row = adapt_row(row)
         sentences.append(sentence_row)
         golds.append(gold_row)
