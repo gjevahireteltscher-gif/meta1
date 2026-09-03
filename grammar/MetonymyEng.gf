@@ -1,5 +1,5 @@
 concrete MetonymyEng of Metonymy =
-  open SyntaxEng, ExtendEng, ParadigmsEng, (R=ResEng) in {
+  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, (R=ResEng) in {
 
   lincat
     S = S ;

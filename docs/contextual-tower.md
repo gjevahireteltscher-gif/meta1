@@ -172,10 +172,15 @@ construction schemas.
 ### Passive voice
 
 `Metonymy.gf`/`MetonymyEng.gf` add `PassCompl : V2 -> NP -> VP`, linearized
-via the RGL's `PassAgentVPSlash (SlashV2a verb) agent` (from `Extend`/
-`ExtendEng`) and predicated with the existing `Pred : NP -> VP -> S` --
-the passive clause's grammatical subject (semantically the patient) fills
-the same slot an active subject does; no new `S`-level rule was needed.
+via the RGL's `PassAgentVPSlash (SlashV2a verb) agent` -- `PassAgentVPSlash`
+from `Extend`/`ExtendEng`, `SlashV2a` from `Verb`/`VerbEng` (a genuinely
+separate module: `Extend`'s own abstract definition only extends `Cat`,
+not `Verb`, so it does not re-export `Verb`'s functions; the first CI run
+of this change confirmed `SlashV2a` was unreachable with only `SyntaxEng`/
+`ExtendEng` opened, and `VerbEng` had to be added explicitly) -- and
+predicated with the existing `Pred : NP -> VP -> S` -- the passive
+clause's grammatical subject (semantically the patient) fills the same
+slot an active subject does; no new `S`-level rule was needed.
 `scripts/annotate_dependency_hints.py` reports a passive subject
 (`nsubj:pass`) as `hole_role="Object"` (it is the patient, not the agent)
 and the "by"-agent phrase (`obl` + `case="by"` on a verb with an
