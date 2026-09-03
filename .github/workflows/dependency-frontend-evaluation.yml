@@ -119,6 +119,63 @@ jobs:
             done
           done
 
+      - name: Install Ollama and pull the promotion-evidence pilot model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          for attempt in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags >/dev/null && break
+            sleep 2
+          done
+          ollama pull llama3.2:3b-instruct
+
+      - name: LLM promotion-evidence pilot (sampled, paired before/after)
+        run: |
+          for ds in wimcor-test conmec; do
+            python3 scripts/evaluation/extract_promotion_candidates.py \
+              --predictions build/evaluation/$ds.dependency-predictions.jsonl \
+              --inputs build/evaluation/$ds.inputs.jsonl \
+              --output build/evaluation/$ds.promotion-candidates.jsonl
+
+            python3 scripts/propose_promotion_evidence.py \
+              --candidates build/evaluation/$ds.promotion-candidates.jsonl \
+              --output build/evaluation/$ds.evidence.tsv \
+              --sample-ids-output build/evaluation/$ds.sample-ids.txt \
+              --sample-size 750
+
+            python3 scripts/evaluation/filter_by_ids.py \
+              --ids build/evaluation/$ds.sample-ids.txt \
+              --input build/evaluation/$ds.inputs.jsonl \
+              --output build/evaluation/$ds.sample.inputs.jsonl
+            python3 scripts/evaluation/filter_by_ids.py \
+              --ids build/evaluation/$ds.sample-ids.txt \
+              --input build/evaluation/$ds.gold.jsonl \
+              --output build/evaluation/$ds.sample.gold.jsonl
+
+            python3 scripts/evaluation/run_engine_predictions.py \
+              --engine build/metonymy \
+              --dataset build/evaluation/$ds.sample.inputs.jsonl \
+              --frontend dependency \
+              --dependency-hints build/evaluation/$ds.dependency-hints.jsonl \
+              --output build/evaluation/$ds.sample.before-predictions.jsonl
+            python3 scripts/evaluation/run_engine_predictions.py \
+              --engine build/metonymy \
+              --dataset build/evaluation/$ds.sample.inputs.jsonl \
+              --frontend dependency \
+              --dependency-hints build/evaluation/$ds.dependency-hints.jsonl \
+              --evidence build/evaluation/$ds.evidence.tsv \
+              --output build/evaluation/$ds.sample.after-predictions.jsonl
+
+            for when in before after; do
+              python3 scripts/evaluation/run_experiment.py \
+                --dataset build/evaluation/$ds.sample.inputs.jsonl \
+                --gold build/evaluation/$ds.sample.gold.jsonl \
+                --predictions build/evaluation/$ds.sample.$when-predictions.jsonl \
+                --metadata evaluation/toolchain.json \
+                --output-dir build/evaluation/$ds-promotion-$when-report
+            done
+          done
+
       - name: Summarize
         run: |
           {
@@ -131,12 +188,30 @@ jobs:
                 echo '```'
               done
             done
+            echo "## LLM promotion-evidence pilot (sampled, paired before/after)"
+            echo "Precision of promoted paths depends on the LLM's judgment,"
+            echo "not on Agda -- see evaluation/README.md's caveat."
+            for ds in wimcor-test conmec; do
+              for when in before after; do
+                echo "### $ds / $when"
+                echo '```json'
+                python3 -m json.tool "build/evaluation/$ds-promotion-$when-report/metrics.json"
+                echo '```'
+              done
+            done
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload aggregate metrics (no corpus text, no per-instance predictions)
+      - name: Upload aggregate metrics and pilot evidence (no corpus text)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dependency-frontend-evaluation-metrics
-          path: build/evaluation/*-report/metrics.json
+          # evidence.tsv is id/target_entity_id/source only, no sentence
+          # text. promotion-candidates.jsonl (sentence + target text from
+          # the corpus) is deliberately NOT uploaded, matching
+          # evaluation/README.md's policy of keeping corpus text out of CI
+          # artifacts even for openly licensed corpora.
+          path: |
+            build/evaluation/*-report/metrics.json
+            build/evaluation/*.evidence.tsv
           retention-days: 30

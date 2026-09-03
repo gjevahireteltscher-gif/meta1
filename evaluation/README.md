@@ -174,6 +174,71 @@ still-unaddressed bottleneck (see `data/entity-link-snapshot.tsv`). The
 corpora, indicating VerbNet-imported Action×Role rows are not yet
 contributing any successful rewrite here regardless of frontend.
 
+### LLM promotion-evidence pilot
+
+The dominant abstention reason after the dependency frontend is not a
+missing bridge at all: it is a checked `SelectionalPreference` candidate
+with no `PromotionEvidence` (WiMCor: `abstain=16602` vs `emitted=1638` in
+the full-condition report above -- ten times more candidates stuck at this
+stage than authorized). `Metonymy.Promotion.authorizeCandidate`
+(`engine/src/Metonymy/Promotion.hs`) already accepts a list of
+`DiscourseEvidence`; the compiled Agda `checkPromotion`
+(`formal/Metonymy/Checker.agda`) independently re-verifies, for any
+supplied evidence, that the candidate is a `SelectionalPreference`, that
+the evidence's target string matches the candidate's actual fine target
+exactly, and that its source is non-empty.
+
+**`checkPromotion` cannot and does not verify that a discourse-salience
+claim is true.** That is not a formalizable property. So unlike every
+other guarantee in this system, the precision of evidence-promoted paths
+depends entirely on the judgment quality of whatever proposed the
+evidence -- here, a small local LLM (Ollama, no API key, no cost) judging
+each candidate independently. Report pilot numbers with this caveat
+attached; do not fold them into claims about the checker's soundness.
+
+Two new scripts implement the untrusted proposer, in the same two-pass
+style as the dependency-hint frontend:
+
+```bash
+python3 scripts/evaluation/extract_promotion_candidates.py \
+  --predictions build/evaluation/dataset.dependency-predictions.jsonl \
+  --inputs build/evaluation/dataset.inputs.jsonl \
+  --output build/evaluation/dataset.promotion-candidates.jsonl
+
+python3 scripts/propose_promotion_evidence.py \
+  --candidates build/evaluation/dataset.promotion-candidates.jsonl \
+  --output build/evaluation/dataset.evidence.tsv \
+  --sample-ids-output build/evaluation/dataset.sample-ids.txt \
+  --sample-size 750
+
+python3 scripts/evaluation/run_engine_predictions.py \
+  --engine build/metonymy --dataset build/evaluation/dataset.inputs.jsonl \
+  --frontend dependency \
+  --dependency-hints build/evaluation/dataset.dependency-hints.jsonl \
+  --evidence build/evaluation/dataset.evidence.tsv \
+  --output build/evaluation/dataset.promoted-predictions.jsonl
+```
+
+`--evidence` is a TSV, not JSON (`id`, `target_entity_id`, `source`),
+deliberately: it is loaded by
+`Metonymy.OpenDomain.loadPromotionEvidence`, which parses it without
+pulling in a new Haskell JSON-parsing dependency, the same way
+`loadEndpointSnapshot` already does for the entity-linker snapshot. The
+`no-context` ablation withholds supplied evidence regardless of
+`--evidence`, since it models "no discourse evidence available" — this is
+the first time that ablation is not a no-op (previously evidence was
+always empty everywhere, so `no-context` was byte-identical to `full`).
+
+A pilot samples `--sample-size` candidates (not the full abstained pool)
+and scores that exact sampled subset before and after evidence (paired
+comparison via `scripts/evaluation/filter_by_ids.py` on
+`--sample-ids-output`), rather than diluting the effect across the full
+41k/6k corpus. See `.github/workflows/dependency-frontend-evaluation.yml`
+for the complete pipeline including the paired before/after scoring; it
+uploads only `evidence.tsv` (ids and entity ids, no sentence text) and
+`metrics.json` files, never the corpus text extracted into
+`promotion-candidates.jsonl`.
+
 ## Score the complete experiment
 
 ```bash
