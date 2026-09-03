@@ -68,6 +68,42 @@ The stronger `frame_argument_capabilities` entries in
 `contextual-language-rules.json` are audited, versioned projections whose
 witnesses must still exist in the active Wikidata/OpenAlex snapshot.
 
+### `action_object_requirements`/`composition_matrix` provenance audit
+
+`contextual-language-rules.json`'s `action_object_requirements` previously
+cited specific FrameNet frame/FE pairs (e.g.
+`"FrameNet:Political_agreement:Signatory"`) that were hand-authored by an
+earlier session without checking them against the actual FrameNet 1.7
+release. A later audit (verified against the real FrameNet 1.7 XML
+distribution -- obtained via `nltk.download('framenet_v17')`, which
+redistributes the identical official release this project's own
+`import_framenet_context.py` already expects, same `frame/`/`lu/`
+directory layout) found: the frames `Political_agreement` and
+`Commercial_agreement` do not exist at all; `Sign_agreement`'s real core
+FE for the signer is `Signatory`, not the previously-cited `Signer`; none
+of `Sign_agreement`/`Statement`'s FEs are named `*_signatory`/
+`*_party`/`*_announcer` as previously claimed; and `Reading:Reader` should
+have named the real frame `Reading_perception`, not the abbreviated
+`Reading`.
+
+Corrected provenance now cites only what the real frame data attests:
+frame name, FE name, and the FE's own declared semantic type (all three
+verified against the real XML) --
+e.g. `"FrameNet:Sign_agreement:Signatory:Sentient"`. FrameNet's semantic
+typing on these FEs is coarse (`Sentient`) and does not itself distinguish
+e.g. a political signatory from a commercial one; the finer per-sort
+requirements this project needs (`PoliticalAgreement` needing a
+`Government`/`PoliticalOrganization` signer, etc.) are this project's own
+world-knowledge narrowing on top of that real base fact, not something
+FrameNet attests -- provenance for those appends an explicit
+`+local:sort-narrowing:<ResultSort>` tag so the FrameNet-attested part and
+the locally-authored part are never conflated. `composition_matrix`'s own
+`"ontology-composition:X×Y"` labels were already honest in this sense (they
+never claimed to be FrameNet citations) and needed no relabeling; six
+previously-missing adjective×noun cells were filled using the same label
+and, where a new result sort was needed, the same `local:sort-narrowing`
+convention on the corresponding new `action_object_requirements` entries.
+
 ## Independent ConMeC-300 selection
 
 `evaluation/independent-conmec-300/selection-manifest.json` freezes a

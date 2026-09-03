@@ -1,5 +1,5 @@
 {
-  "schema_version": "contextual-language-rules-4",
+  "schema_version": "contextual-language-rules-5",
   "action_role_source": {
     "hard_requirements": "data/predicates.tsv",
     "selectional_preferences": "data/verbnet-action-roles.tsv",
@@ -184,6 +184,18 @@
     },
     {
       "modifier_sort": "Scientific",
+      "noun_sort": "Agreement",
+      "result_sort": "ScientificAgreement",
+      "provenance": "ontology-composition:Scientific×Agreement"
+    },
+    {
+      "modifier_sort": "Educational",
+      "noun_sort": "Agreement",
+      "result_sort": "EducationalAgreement",
+      "provenance": "ontology-composition:Educational×Agreement"
+    },
+    {
+      "modifier_sort": "Scientific",
       "noun_sort": "Programme",
       "result_sort": "ResearchProgramme",
       "provenance": "ontology-composition:Scientific×Programme"
@@ -193,6 +205,18 @@
       "noun_sort": "Programme",
       "result_sort": "EducationalProgramme",
       "provenance": "ontology-composition:Educational×Programme"
+    },
+    {
+      "modifier_sort": "Political",
+      "noun_sort": "Programme",
+      "result_sort": "PoliticalProgramme",
+      "provenance": "ontology-composition:Political×Programme"
+    },
+    {
+      "modifier_sort": "Commercial",
+      "noun_sort": "Programme",
+      "result_sort": "CommercialProgramme",
+      "provenance": "ontology-composition:Commercial×Programme"
     },
     {
       "modifier_sort": "Political",
@@ -229,81 +253,125 @@
       "noun_sort": "Institution",
       "result_sort": "Institution",
       "provenance": "ontology-composition:Scientific×Institution"
+    },
+    {
+      "modifier_sort": "Political",
+      "noun_sort": "Institution",
+      "result_sort": "Institution",
+      "provenance": "ontology-composition:Political×Institution"
+    },
+    {
+      "modifier_sort": "Commercial",
+      "noun_sort": "Institution",
+      "result_sort": "Institution",
+      "provenance": "ontology-composition:Commercial×Institution"
     }
   ],
   "action_object_requirements": {
     "sign": {
       "Agreement": {
         "candidate_requirement": "HasSort Agent",
-        "provenance": "FrameNet:Sign_agreement:Signer"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient"
       },
       "PoliticalAgreement": {
         "candidate_requirement": "AnyOf [HasSort Government,HasSort PoliticalOrganization]",
-        "provenance": "FrameNet:Political_agreement:Signatory"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:PoliticalAgreement"
       },
       "CommercialAgreement": {
         "candidate_requirement": "HasSort BusinessOrganization",
-        "provenance": "FrameNet:Commercial_agreement:Signatory"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:CommercialAgreement"
+      },
+      "ScientificAgreement": {
+        "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:ScientificAgreement"
+      },
+      "EducationalAgreement": {
+        "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:EducationalAgreement"
       },
       "PoliticalOrganization": {
         "candidate_requirement": "AnyOf [HasSort Government,HasSort PoliticalOrganization]",
-        "provenance": "FrameNet:Sign_agreement:Political_signatory"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:PoliticalOrganization"
       },
       "BusinessOrganization": {
         "candidate_requirement": "HasSort BusinessOrganization",
-        "provenance": "FrameNet:Sign_agreement:Commercial_signatory"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:BusinessOrganization"
       },
       "Institution": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Sign_agreement:Institutional_signatory"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:Institution"
       },
       "Programme": {
         "candidate_requirement": "HasSort Agent",
-        "provenance": "FrameNet:Sign_agreement:Programme_party"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient"
       },
       "ResearchProgramme": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Sign_agreement:Research_programme_party"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:ResearchProgramme"
       },
       "EducationalProgramme": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Sign_agreement:Educational_programme_party"
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:EducationalProgramme"
+      },
+      "PoliticalProgramme": {
+        "candidate_requirement": "AnyOf [HasSort Government,HasSort PoliticalOrganization]",
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:PoliticalProgramme"
+      },
+      "CommercialProgramme": {
+        "candidate_requirement": "HasSort BusinessOrganization",
+        "provenance": "FrameNet:Sign_agreement:Signatory:Sentient+local:sort-narrowing:CommercialProgramme"
       }
     },
     "announce": {
       "Programme": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Statement:Programme_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:Programme"
       },
       "ResearchProgramme": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Statement:Research_programme_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:ResearchProgramme"
       },
       "EducationalProgramme": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Statement:Educational_programme_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:EducationalProgramme"
+      },
+      "PoliticalProgramme": {
+        "candidate_requirement": "AnyOf [HasSort Government,HasSort PoliticalOrganization]",
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:PoliticalProgramme"
+      },
+      "CommercialProgramme": {
+        "candidate_requirement": "HasSort BusinessOrganization",
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:CommercialProgramme"
       },
       "Agreement": {
         "candidate_requirement": "HasSort Agent",
-        "provenance": "FrameNet:Statement:Agreement_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient"
       },
       "PoliticalAgreement": {
         "candidate_requirement": "AnyOf [HasSort Government,HasSort PoliticalOrganization]",
-        "provenance": "FrameNet:Statement:Political_agreement_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:PoliticalAgreement"
       },
       "CommercialAgreement": {
         "candidate_requirement": "HasSort BusinessOrganization",
-        "provenance": "FrameNet:Statement:Commercial_agreement_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:CommercialAgreement"
+      },
+      "ScientificAgreement": {
+        "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:ScientificAgreement"
+      },
+      "EducationalAgreement": {
+        "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:EducationalAgreement"
       },
       "Institution": {
         "candidate_requirement": "AnyOf [HasSort Organization,HasSort Institution]",
-        "provenance": "FrameNet:Statement:Institution_announcer"
+        "provenance": "FrameNet:Statement:Speaker:Sentient+local:sort-narrowing:Institution"
       }
     },
     "read": {
       "Readable": {
         "candidate_requirement": "HasSort Animate",
-        "provenance": "FrameNet:Reading:Reader"
+        "provenance": "FrameNet:Reading_perception:Reader:Sentient"
       }
     }
   }
