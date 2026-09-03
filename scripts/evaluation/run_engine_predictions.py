@@ -119,6 +119,7 @@ def predict_open_batch(
     ablation: str,
     frontend: str = "legacy",
     dependency_hints: dict[str, dict] | None = None,
+    evidence: Path | None = None,
 ) -> dict[str, dict]:
     """Run one ablation over ``rows`` through ``open-batch``.
 
@@ -149,8 +150,11 @@ def predict_open_batch(
                 ]
         lines.append("\t".join(fields))
     payload = "".join(line + "\n" for line in lines)
+    command = [str(engine), "open-batch", ablation]
+    if evidence is not None:
+        command += ["--evidence", str(evidence)]
     process = subprocess.run(
-        [str(engine), "open-batch", ablation],
+        command,
         input=payload,
         text=True,
         capture_output=True,
@@ -210,6 +214,16 @@ def main() -> None:
         help="dependency-hints.jsonl produced by annotate_dependency_hints.py; "
         "required when --frontend dependency is used",
     )
+    parser.add_argument(
+        "--evidence",
+        type=Path,
+        help="promotion-evidence TSV (id, target_entity_id, source) produced by "
+        "scripts/propose_promotion_evidence.py; promotes matching "
+        "SelectionalPreference candidates, subject to the compiled Agda "
+        "checkPromotion re-verifying the target and a non-empty source "
+        "(see engine/src/Metonymy/OpenDomain.hs's loadPromotionEvidence). "
+        "The no-context ablation withholds it regardless.",
+    )
     arguments = parser.parse_args()
     if arguments.frontend == "dependency" and arguments.dependency_hints is None:
         raise SystemExit("--frontend dependency requires --dependency-hints")
@@ -247,6 +261,7 @@ def main() -> None:
                 ablation,
                 frontend=arguments.frontend,
                 dependency_hints=dependency_hints,
+                evidence=arguments.evidence,
             ).items():
                 batched[(identifier, ablation)] = prediction
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
