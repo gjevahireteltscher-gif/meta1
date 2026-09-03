@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad (unless)
 import Data.List (find, isPrefixOf, nubBy, sortOn)
+import qualified Data.Map.Strict as Map
 import Metonymy.Automatic
 import Metonymy.Contextual
 import Metonymy.ContextualChecked
@@ -108,7 +109,15 @@ main = do
           target
           sentence
     ["open-batch", ablation] ->
-      runOpenBatch knowledgeBase endpointSnapshot actionRoles ablation
+      runOpenBatch knowledgeBase endpointSnapshot actionRoles ablation Map.empty
+    ["open-batch", ablation, "--evidence", evidencePath] -> do
+      promotionEvidence <- loadPromotionEvidence evidencePath
+      runOpenBatch
+        knowledgeBase
+        endpointSnapshot
+        actionRoles
+        ablation
+        promotionEvidence
     ["contextual-fiber", scenarioName] ->
       case find ((== scenarioName) . contextScenarioName) contextualScenarios of
         Just scenario ->
@@ -575,6 +584,7 @@ runOpenEvaluation
           (datasetHint dataset category)
           target
           Nothing
+          []
           sentence
   mapM_ putStrLn (renderOpenResult result)
 
@@ -584,6 +594,15 @@ data OpenEvaluationResult
   | OpenEvaluationRejected OpenFamily
   | OpenEvaluationPreference OpenFamily Candidate
   | OpenEvaluationAuthorized OpenFamily Candidate
+  | -- | A SelectionalPreference candidate promoted to a checked path via
+    -- supplied 'DiscourseEvidence' (e.g. from
+    -- @scripts/propose_promotion_evidence.py@'s LLM pilot). Kept distinct
+    -- from 'OpenEvaluationAuthorized' so batch analysis can tell how many
+    -- authorized rewrites came from a HardRequirement path directly versus
+    -- from evidence-backed promotion, whose precision depends on the
+    -- evidence source's judgment quality rather than on Agda alone -- see
+    -- evaluation/README.md's "LLM promotion-evidence pilot" section.
+    OpenEvaluationPromoted OpenFamily Candidate DiscourseEvidence
 
 evaluateOpen ::
   [EndpointProposal] ->
@@ -593,12 +612,14 @@ evaluateOpen ::
   DatasetHint ->
   String ->
   Maybe (Int, Int) ->
+  [DiscourseEvidence] ->
   String ->
   OpenEvaluationResult
 evaluateOpen
-  endpointSnapshot actionRoles base ablation hint target targetSpan sentence =
+  endpointSnapshot actionRoles base ablation hint target targetSpan evidence sentence =
   resolveOpenDecision
     ablation
+    evidence
     ( analyzeOpenAtWithEndpoints
         endpointSnapshot actionRoles base hint target targetSpan sentence
     )
@@ -618,18 +639,21 @@ evaluateOpenWithDependencyHint ::
   String ->
   Maybe (Int, Int) ->
   DependencyHint ->
+  [DiscourseEvidence] ->
   String ->
   OpenEvaluationResult
 evaluateOpenWithDependencyHint
-  endpointSnapshot actionRoles base ablation hint target targetSpan dep sentence =
+  endpointSnapshot actionRoles base ablation hint target targetSpan dep evidence sentence =
   resolveOpenDecision
     ablation
+    evidence
     ( analyzeOpenAtWithDependencyHint
         endpointSnapshot actionRoles base hint target targetSpan dep sentence
     )
 
-resolveOpenDecision :: String -> OpenDecision -> OpenEvaluationResult
-resolveOpenDecision ablation decision =
+resolveOpenDecision ::
+  String -> [DiscourseEvidence] -> OpenDecision -> OpenEvaluationResult
+resolveOpenDecision ablation evidence decision =
   case decision of
     OpenLiteral ->
       OpenEvaluationLiteral
@@ -641,18 +665,26 @@ resolveOpenDecision ablation decision =
               ablation
               candidateKnowledgeBase
               candidatePredicates
+          -- "no-context" withholds discourse evidence, the same way the
+          -- other ablations withhold type/ontology/VerbNet facts. This is
+          -- the only place evidence is actually consumed, so it is also
+          -- the only place that needs to enforce it.
+          consideredEvidence =
+            if ablation == "no-context" then [] else evidence
        in case
           authorizeCandidate
             ablatedKnowledgeBase
             ablatedPredicates
-            []
+            consideredEvidence
             candidate
         of
         Just DirectHardPath ->
           OpenEvaluationAuthorized family candidate
+        Just (PromotedPreferencePath usedEvidence) ->
+          OpenEvaluationPromoted family candidate usedEvidence
         Just PreferenceCandidate ->
           OpenEvaluationPreference family candidate
-        _ ->
+        Nothing ->
           OpenEvaluationRejected family
 
 -- | Parse the three trailing dependency-hint TSV columns
@@ -695,6 +727,14 @@ renderOpenResult (OpenEvaluationAuthorized family candidate) =
   , "target-tree=" <> candidateAbstractTree candidate
   , "endpoint=" <> candidateSurface candidate
   ]
+renderOpenResult (OpenEvaluationPromoted family candidate evidence) =
+  [ "status=authorized prediction=metonymic frontend=open-gf family="
+      <> openFamilyName family
+  , "promotion-evidence-source=" <> evidenceSource evidence
+  , "source-tree=" <> candidateSourceTree candidate
+  , "target-tree=" <> candidateAbstractTree candidate
+  , "endpoint=" <> candidateSurface candidate
+  ]
 
 datasetHint :: String -> String -> DatasetHint
 datasetHint "wimcor" _ =
@@ -709,14 +749,20 @@ runOpenBatch ::
   [EndpointProposal] ->
   ActionRoleIndex ->
   String ->
+  Map.Map String DiscourseEvidence ->
   IO ()
-runOpenBatch base endpointSnapshot actionRoles ablation = do
+runOpenBatch base endpointSnapshot actionRoles ablation promotionEvidence = do
   unless
     (ablation `elem` ["full", "no-types", "no-ontology", "no-context", "no-verbnet"])
     (die ("unknown evaluation ablation: " <> ablation))
   contents <- getContents
   mapM_ processLine (filter (not . null) (lines contents))
   where
+    -- authorizeCandidate takes a list (it searches for the first accepted
+    -- item via 'find'); at most one evidence row per corpus instance is
+    -- supplied here, so this is a singleton-or-empty list.
+    evidenceFor identifier =
+      maybe [] (: []) (Map.lookup identifier promotionEvidence)
     processLine line =
       case splitTabs line of
         [identifier, dataset, category, target, sentence] ->
@@ -731,6 +777,7 @@ runOpenBatch base endpointSnapshot actionRoles ablation = do
                     (datasetHint dataset category)
                     target
                     Nothing
+                    (evidenceFor identifier)
                     sentence
                 )
             )
@@ -748,6 +795,7 @@ runOpenBatch base endpointSnapshot actionRoles ablation = do
                         (datasetHint dataset category)
                         target
                         (Just (startOffset, endOffset))
+                        (evidenceFor identifier)
                         sentence
                     )
                 )
@@ -772,6 +820,7 @@ runOpenBatch base endpointSnapshot actionRoles ablation = do
                             target
                             (Just (startOffset, endOffset))
                             dep
+                            (evidenceFor identifier)
                             sentence
                         )
                     )
@@ -804,11 +853,29 @@ renderOpenBatchRow identifier (OpenEvaluationPreference family candidate) =
     <> openFamilyName family
     <> "\tselectional-preference:"
     <> candidateSurface candidate
+    -- Trailing raw target EntityId, tab-separated within this final field
+    -- (run_engine_predictions.py's line.split("\t", 4) already captures
+    -- everything past the 4th tab as one piece, so this is safe and
+    -- explicitly parsed back out on the Python side). Needed so a
+    -- promotion-evidence proposer (human or LLM) can reference the exact
+    -- candidate target: candidateSurface is a human label, not the
+    -- EntityId string that Agda's checkPromotion string-compares evidence
+    -- against (see toAgdaCertificate's rawTarget, engine/src/Metonymy/Verified.hs).
+    <> "\t"
+    <> unEntityId (fineTarget (certificateFine (candidateCertificate candidate)))
 renderOpenBatchRow identifier (OpenEvaluationAuthorized family candidate) =
   identifier
     <> "\temitted\tmetonymic\t"
     <> openFamilyName family
     <> "\t"
+    <> candidateSurface candidate
+renderOpenBatchRow identifier (OpenEvaluationPromoted family candidate evidence) =
+  identifier
+    <> "\temitted\tmetonymic\t"
+    <> openFamilyName family
+    <> "\tpromoted:"
+    <> evidenceSource evidence
+    <> ":"
     <> candidateSurface candidate
 
 requireScenario :: KnowledgeBase -> String -> IO Scenario
@@ -862,10 +929,13 @@ usage =
         , "  metonymy parse \"English sentence\""
         , "  metonymy evaluate ABLATION expand|contract \"English sentence\""
         , "  metonymy open-evaluate ABLATION DATASET CATEGORY TARGET \"English sentence\""
-        , "  metonymy open-batch ABLATION  # TSV on stdin"
+        , "  metonymy open-batch ABLATION [--evidence FILE]  # TSV on stdin"
         , "    id,dataset,category,target,[start,end,]sentence  (legacy frontend)"
         , "    id,dataset,category,target,start,end,sentence,"
         , "      hole_role,governing_lemma,dep_status  (UD dependency-hint frontend)"
+        , "    --evidence FILE: TSV id,target_entity_id,source promoting"
+        , "      SelectionalPreference candidates whose fine target matches;"
+        , "      see scripts/propose_promotion_evidence.py"
         , "  metonymy contextual-fiber SCENARIO"
         , "    [--snapshot PATH] [--scenarios PATH]"
         , "  metonymy contextual-contract SCENARIO TARGET-QID"

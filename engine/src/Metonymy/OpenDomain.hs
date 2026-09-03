@@ -9,6 +9,7 @@ module Metonymy.OpenDomain
   , chooseActionRolesFromDependency
   , buildActionRoleIndex
   , loadEndpointSnapshot
+  , loadPromotionEvidence
   , analyzeOpen
   , analyzeOpenAt
   , analyzeOpenAtWithEndpoints
@@ -758,6 +759,43 @@ loadEndpointSnapshot path = do
         _ ->
           fail
             (path <> ":" <> show lineNumber <> ": expected six TSV fields")
+
+-- | Load a promotion-evidence file (one row per corpus instance that a
+-- proposer -- human or LLM, e.g. @scripts/propose_promotion_evidence.py@
+-- -- judged discourse-salient for a specific, already-discovered candidate
+-- target). Untrusted like every other proposer: 'Metonymy.Checker.checkPromotion'
+-- (compiled through MAlonzo) independently re-verifies that the target
+-- string matches the candidate's actual fine target and that the source is
+-- non-empty before any promotion is authorized. TSV, not JSON, so no new
+-- Haskell dependency is needed to parse it (mirrors 'loadEndpointSnapshot').
+loadPromotionEvidence :: FilePath -> IO (Map.Map String DiscourseEvidence)
+loadPromotionEvidence path = do
+  contents <- readFile path
+  case lines contents of
+    [] -> fail ("empty promotion evidence file: " <> path)
+    header : rows
+      | header /= "id\ttarget_entity_id\tsource" ->
+          fail ("unexpected promotion evidence header: " <> path)
+      | otherwise -> do
+          parsed <- traverse parseRow (zip [2 :: Int ..] rows)
+          pure (Map.fromList parsed)
+  where
+    parseRow (lineNumber, row) =
+      case splitTabs row of
+        [identifier, targetId, source]
+          | null source ->
+              fail (path <> ":" <> show lineNumber <> ": empty evidence source")
+          | otherwise ->
+              pure
+                ( identifier
+                , TargetSalient
+                    { evidenceTarget = EntityId targetId
+                    , evidenceSource = source
+                    }
+                )
+        _ ->
+          fail
+            (path <> ":" <> show lineNumber <> ": expected three TSV fields")
 
 parseFamily :: String -> Maybe OpenFamily
 parseFamily name =
