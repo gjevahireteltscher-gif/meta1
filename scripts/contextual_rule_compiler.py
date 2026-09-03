@@ -188,6 +188,7 @@ def resolve_action(
     target_surfaces: list[str],
     roles: list[ActionRole],
     morphology_overrides: dict,
+    dependency_hint: dict | None = None,
 ) -> dict:
     by_form: dict[str, list[ActionRole]] = {}
     for role in roles:
@@ -198,16 +199,35 @@ def resolve_action(
         for form in definition.get("forms", []):
             by_form.setdefault(form.casefold(), []).extend(matching)
 
-    target_span = _mention_span(sentence, target_surfaces)
-    if target_span is None:
-        raise ValueError("target-occurrence-not-found")
+    dep_status = dependency_hint.get("dep_status") if dependency_hint else None
+    if dep_status == "nested-modifier":
+        raise ValueError("nested-modifier-unsupported")
 
-    candidates = []
-    for surface, start, end in _surface_phrases(sentence):
-        for role in by_form.get(surface, []):
-            expected_role = "SubjectHole" if target_span[0] < start else "ObjectHole"
-            if role.hole_role == expected_role:
-                candidates.append((abs(start - target_span[0]), start, end, surface, role))
+    governing_start = dependency_hint.get("governing_start") if dependency_hint else None
+    governing_end = dependency_hint.get("governing_end") if dependency_hint else None
+    if (
+        dep_status == "direct-argument"
+        and governing_start is not None
+        and governing_end is not None
+        and dependency_hint.get("hole_role")
+    ):
+        governing_lemma = (dependency_hint.get("governing_lemma") or "").casefold()
+        candidates = [
+            (0, governing_start, governing_end, sentence[governing_start:governing_end].casefold(), role)
+            for role in by_form.get(governing_lemma, [])
+            if role.hole_role == dependency_hint["hole_role"]
+        ]
+    else:
+        target_span = _mention_span(sentence, target_surfaces)
+        if target_span is None:
+            raise ValueError("target-occurrence-not-found")
+
+        candidates = []
+        for surface, start, end in _surface_phrases(sentence):
+            for role in by_form.get(surface, []):
+                expected_role = "SubjectHole" if target_span[0] < start else "ObjectHole"
+                if role.hole_role == expected_role:
+                    candidates.append((abs(start - target_span[0]), start, end, surface, role))
     if not candidates:
         raise ValueError("unsupported-action-role")
 
