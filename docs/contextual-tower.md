@@ -291,3 +291,60 @@ preferences.
 
 External evidence is merged by `merge_context_evidence.py`, which recomputes
 `graph_sha256`. It cannot silently mutate an already certified snapshot.
+
+## Running WiMCor/ConMeC through the tower
+
+`run_contextual_corpus.py` expects `{id, sentence, source, family}` rows, not
+the flat pipeline's `{id, source, text, target, gold, gold_bridge, ...}` shape
+(`scripts/evaluation/prepare_wimcor.py`/`prepare_conmec.py`).
+`scripts/evaluation/adapt_metonymy_corpus_for_tower.py` converts one into the
+other:
+
+```bash
+python3 scripts/evaluation/prepare_wimcor.py \
+  --archive /path/to/wimcor-v1.1.tar.gz --split test \
+  --output build/evaluation/wimcor-test.inputs.jsonl
+
+python3 scripts/evaluation/adapt_metonymy_corpus_for_tower.py \
+  --dataset build/evaluation/wimcor-test.inputs.jsonl \
+  --sentences-output build/evaluation/wimcor-test.tower-sentences.jsonl \
+  --gold-output build/evaluation/wimcor-test.tower-gold.jsonl
+
+python3 scripts/evaluation/run_contextual_corpus.py \
+  --dataset build/evaluation/wimcor-test.tower-sentences.jsonl \
+  --engine build/metonymy \
+  --snapshot data/wikidata-openalex-snapshot \
+  --output build/evaluation/wimcor-test.tower-inference.jsonl
+
+python3 scripts/evaluation/score_contextual_detection.py \
+  --inference build/evaluation/wimcor-test.tower-inference.jsonl \
+  --gold build/evaluation/wimcor-test.tower-gold.jsonl \
+  --output build/evaluation/wimcor-test.tower-report.json
+```
+
+**The adapter is lossy by construction, not by oversight**: WiMCor and
+ConMeC only ever annotate metonymic-vs-literal plus a bridge-family type
+(e.g. `location-for-institution`); neither names a specific correct
+Wikidata entity. `score_qid_fibers.py`'s exact-QID-in-fiber metric --
+the one the `contextual-multidomain` audited/silver fixtures above use --
+cannot be computed for these corpora at all, since there is no
+`gold_qids` to compare against. `score_contextual_detection.py` scores
+the weaker claim these corpora actually support instead: for a
+gold-metonymic mention, did the tower run successfully and end with a
+non-empty final fiber (some bridged reading survived every stage); for a
+gold-literal mention, did it correctly end with none. This mapping ("ok
++ non-empty fiber" = predicted metonymic) is a design choice documented
+in that script's own docstring, not something the engine reports as a
+native flag -- read it before citing precision/recall/F1 from this path.
+
+**Coverage caveat**: the frozen `data/wikidata-openalex-snapshot` and the
+current `composition_matrix`/`context_templates` coverage are both still
+narrow (a handful of adjective×noun sorts, a curated multi-domain entity
+set). Running the full WiMCor/ConMeC corpora through this path today will
+mostly abstain (`gf-parse-failed`/`semantic-composition-failed`/
+`source-qid-unresolved`) rather than produce a large, representative
+sample of genuine tower-verified endpoints -- `literal_prediction_reasons`
+in the score report shows exactly which. Scaling this up further is
+Items 2-4's job (`scripts/build_wikidata_api_index.py` run at real
+corpus scale, more `composition_matrix`/`context_templates` coverage,
+more GF grammar constructions), not this adapter's.
