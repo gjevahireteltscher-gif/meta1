@@ -90,7 +90,18 @@ def main() -> None:
     )
     parser.add_argument("--disable-framenet", action="store_true")
     parser.add_argument("--framenet-snapshot", type=Path)
+    parser.add_argument(
+        "--dependency-hint",
+        help=(
+            "compact JSON object with dep_status/hole_role/governing_lemma/"
+            "governing_start/governing_end, precomputed by "
+            "annotate_dependency_hints.py"
+        ),
+    )
     args = parser.parse_args()
+    dependency_hint = (
+        json.loads(args.dependency_hint) if args.dependency_hint else None
+    )
     aliases = {}
     for row in rows(args.snapshot / "aliases.jsonl"):
         aliases.setdefault(row["alias"].casefold(), []).append(row["id"])
@@ -115,6 +126,7 @@ def main() -> None:
                 "morphology_overrides",
                 language_rules.get("actions", {}),
             ),
+            dependency_hint=dependency_hint,
         )
     except ValueError as error:
         raise SystemExit(str(error)) from error

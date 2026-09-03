@@ -95,6 +95,13 @@ def main() -> None:
     parser.add_argument("--source")
     parser.add_argument("--linker-cache", type=Path)
     parser.add_argument("--contract-target")
+    parser.add_argument(
+        "--dependency-hint",
+        help=(
+            "compact JSON object precomputed by annotate_dependency_hints.py, "
+            "passed through to propose_contextual_scenario.py"
+        ),
+    )
     parser.add_argument("--rules", default="data/contextual-language-rules.json")
     parser.add_argument(
         "--gf-actions", default="data/contextual-gf-actions.json"
@@ -131,6 +138,8 @@ def main() -> None:
         command.extend(["--linker-cache", str(args.linker_cache)])
     if args.contract_target:
         command.extend(["--target-surface", args.contract_target])
+    if args.dependency_hint:
+        command.extend(["--dependency-hint", args.dependency_hint])
     if args.ablation == "no-framenet":
         command.append("--disable-framenet")
     elif args.framenet_snapshot:

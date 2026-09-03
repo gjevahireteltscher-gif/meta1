@@ -7,13 +7,67 @@ import argparse
 import json
 import re
 import subprocess
+import sys
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 QID = re.compile(r"Q[0-9]+")
 
 
-def run_one(engine: Path, snapshot: Path, ablation: str, row: dict) -> dict:
+def precompute_dependency_hints(dataset: Path) -> dict[str, dict]:
+    """Batch-parse the whole corpus once via annotate_dependency_hints.py.
+
+    Must run before the per-row ThreadPoolExecutor loop below, not inside
+    it -- one Stanza pipeline for the whole corpus, not one per parallel
+    subprocess (that already caused a 5h50m CI timeout on the flat
+    pipeline once; see scripts/annotate_dependency_hints.py's docstring).
+    A failure here degrades to "no hints for anyone", never a hard error:
+    resolve_action's dependency_hint=None path is identical to its
+    pre-hint behaviour.
+    """
+    with tempfile.TemporaryDirectory() as directory:
+        output = Path(directory) / "dependency-hints.jsonl"
+        completed = subprocess.run(
+            [
+                "python3",
+                "scripts/annotate_dependency_hints.py",
+                "--dataset",
+                str(dataset),
+                "--output",
+                str(output),
+                "--text-field",
+                "sentence",
+                "--target-field",
+                "source",
+                "--no-source-filter",
+            ],
+            text=True,
+            capture_output=True,
+        )
+        if completed.returncode != 0 or not output.exists():
+            print(
+                "run_contextual_corpus: dependency-hint precompute failed, "
+                "continuing without hints: " + completed.stderr.strip(),
+                file=sys.stderr,
+            )
+            return {}
+        hints = {}
+        with output.open(encoding="utf-8") as source:
+            for line in source:
+                if line.strip():
+                    hint = json.loads(line)
+                    hints[hint["id"]] = hint
+        return hints
+
+
+def run_one(
+    engine: Path,
+    snapshot: Path,
+    ablation: str,
+    row: dict,
+    dependency_hint: dict | None,
+) -> dict:
     command = [
         "python3",
         "scripts/run_automatic_contextual_pipeline.py",
@@ -30,6 +84,10 @@ def run_one(engine: Path, snapshot: Path, ablation: str, row: dict) -> dict:
     ]
     if row.get("direction") == "contract":
         command.extend(["--contract-target", row["contract_target"]])
+    if dependency_hint is not None:
+        command.extend(
+            ["--dependency-hint", json.dumps(dependency_hint, sort_keys=True)]
+        )
     completed = subprocess.run(
         command,
         text=True,
@@ -122,11 +180,16 @@ def main() -> None:
         for line in args.dataset.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+    dependency_hints = precompute_dependency_hints(args.dataset)
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         results = list(
             executor.map(
                 lambda row: run_one(
-                    args.engine, args.snapshot, args.ablation, row
+                    args.engine,
+                    args.snapshot,
+                    args.ablation,
+                    row,
+                    dependency_hints.get(row["id"]),
                 ),
                 inputs,
             )
