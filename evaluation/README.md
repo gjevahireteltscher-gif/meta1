@@ -155,6 +155,25 @@ baseline. Score the resulting predictions file exactly like the legacy one
 overwriting the existing legacy baselines, so the two frontends remain
 independently comparable.
 
+Recorded results (`evaluation/wimcor-dependency-frontend-summary.json`,
+`evaluation/conmec-dependency-frontend-summary.json`), full condition,
+expansion direction, against the identical legacy baseline in
+`wimcor-typed-fiber-summary.json`/`conmec-typed-fiber-summary.json`:
+
+| | WiMCor metonymic F1 | WiMCor coverage | ConMeC metonymic F1 | ConMeC coverage |
+|---|---|---|---|---|
+| legacy | `0.0518` | `0.391` | `0.0220` | `0.405` |
+| dependency | `0.1158` | `0.597` | `0.0360` | `0.630` |
+
+Metonymic precision improves alongside recall on both corpora (WiMCor
+`0.386` → `0.429`; ConMeC `0.185` → `0.197`), so this is not a
+precision/recall trade-off. Exact endpoint recall on WiMCor remains tiny in
+absolute terms (`1` → `5` out of `10487`): entity linking is a separate,
+still-unaddressed bottleneck (see `data/entity-link-snapshot.tsv`). The
+`no-verbnet` ablation is byte-identical to `full` for both frontends on both
+corpora, indicating VerbNet-imported Action×Role rows are not yet
+contributing any successful rewrite here regardless of frontend.
+
 ## Score the complete experiment
 
 ```bash

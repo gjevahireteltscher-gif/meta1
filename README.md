@@ -432,6 +432,22 @@ baseline, not state-of-the-art, claims; improving them requires dependency
 bindings, independently sourced discourse evidence, and a substantially
 larger entity linker. Gold remains physically separated from inference.
 
+Replacing `chooseActionRoles`'s positional-offset subject/object heuristic
+with an offline UD dependency parse (Stanza `en_ewt`,
+`scripts/annotate_dependency_hints.py`) more than doubles WiMCor metonymic
+F1 (`0.0518` → `0.1158`) and raises ConMeC metonymic F1 by roughly 64%
+(`0.0220` → `0.0360`), with coverage and metonymic precision improving
+alongside recall on both corpora rather than trading one for the other.
+Both frontends are routed through the identical compiled Agda
+`runtimeCheck`, so this is a coverage gain at an unchanged formal safety
+boundary. See
+[`evaluation/wimcor-dependency-frontend-summary.json`](evaluation/wimcor-dependency-frontend-summary.json)
+and
+[`evaluation/conmec-dependency-frontend-summary.json`](evaluation/conmec-dependency-frontend-summary.json)
+for the full breakdown, including the still-unaddressed bottlenecks (entity
+linking, VerbNet-imported roles not yet contributing any successful
+rewrite on either corpus).
+
 ## Current scope
 
 This is a formally checked GF extension with a deterministic open-domain

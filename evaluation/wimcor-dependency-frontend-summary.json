@@ -1,0 +1,30 @@
+{
+  "benchmark": "WiMCor v1.1 official test partition",
+  "system": "VerbNet Action×Role typed fiber search + UD dependency-hint frontend (Stanza en_ewt, package \"ewt\")",
+  "source_sha256": "df4d52a63d9c03cdce543f5d9638efafab73736ce117f90352373fd7051f8e2b",
+  "instances": 41200,
+  "protocol": "target-span-aware, physically separated inference/gold",
+  "full": {
+    "coverage": 0.5970388349514563,
+    "accuracy_micro_f1": 0.5711723760600627,
+    "macro_f1": 0.39491924619512475,
+    "metonymic_precision": 0.42857142857142855,
+    "metonymic_recall": 0.06694002097835415,
+    "metonymic_f1": 0.1157938144329897,
+    "bridge_family_accuracy_on_true_positive_detections": 0.4601139601139601,
+    "endpoint_gold_instances": 10487,
+    "endpoint_recall_at_1": 0.00047678077619910363,
+    "endpoint_selective_accuracy": 0.007122507122507123,
+    "exact_endpoints": 5,
+    "emitted": 1638,
+    "literal_no_rewrite": 22960,
+    "abstained": 16602
+  },
+  "compare_to": "wimcor-typed-fiber-summary.json (legacy positional-heuristic frontend, same protocol, run in the same evaluation session)",
+  "legacy_comparison": {
+    "metonymic_f1": {"legacy": 0.05177475313584201, "dependency": 0.1157938144329897},
+    "coverage": {"legacy": 0.3907038834951456, "dependency": 0.5970388349514563},
+    "emitted": {"legacy": 754, "dependency": 1638}
+  },
+  "interpretation": "Replacing chooseActionRoles's positional-offset subject/object heuristic (OpenDomain.hs) with a UD dependency parse (scripts/annotate_dependency_hints.py) more than doubles metonymic F1 (0.0518 -> 0.1158) and raises coverage from 39% to 60%, with metonymic precision also improving (0.386 -> 0.429) rather than trading precision for recall. Both frontends route through the identical compiled Agda runtimeCheck, so this is a recall/coverage gain at an unchanged formal safety boundary, not a relaxation of it. Absolute numbers remain modest by open-domain-classifier standards: exact endpoint recall stays tiny (5/10487) because entity linking (a separate, still-unaddressed bottleneck -- see data/entity-link-snapshot.tsv) is unchanged, and the no-verbnet ablation is byte-identical to full for both frontends, indicating VerbNet-imported Action×Role rows are not yet contributing any successful rewrite on this corpus regardless of frontend."
+}

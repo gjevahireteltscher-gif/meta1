@@ -1,0 +1,28 @@
+{
+  "benchmark": "ConMeC full downloadable CSV",
+  "system": "VerbNet Action×Role typed fiber search + UD dependency-hint frontend (Stanza en_ewt, package \"ewt\")",
+  "source_sha256": "cd692d6953bb719bb6aeb0ac13df7c3641564918c38cf39ad15bcf20c8b76d90",
+  "source_instances": 6000,
+  "evaluated_instances": 5999,
+  "quarantined_instances": 1,
+  "protocol": "target-span-aware, physically separated inference/gold",
+  "full": {
+    "coverage": 0.6299383230538423,
+    "accuracy_micro_f1": 0.5383514011045204,
+    "macro_f1": 0.3472538563148118,
+    "metonymic_precision": 0.19653179190751446,
+    "metonymic_recall": 0.019836639439906652,
+    "metonymic_f1": 0.036036036036036036,
+    "bridge_family_accuracy_on_true_positive_detections": 0.8823529411764706,
+    "emitted": 173,
+    "literal_no_rewrite": 3606,
+    "abstained": 2220
+  },
+  "compare_to": "conmec-typed-fiber-summary.json (legacy positional-heuristic frontend, same protocol, run in the same evaluation session)",
+  "legacy_comparison": {
+    "metonymic_f1": {"legacy": 0.021953896816684963, "dependency": 0.036036036036036036},
+    "coverage": {"legacy": 0.4049008168028005, "dependency": 0.6299383230538423},
+    "emitted": {"legacy": 108, "dependency": 173}
+  },
+  "interpretation": "Replacing chooseActionRoles's positional-offset subject/object heuristic (OpenDomain.hs) with a UD dependency parse (scripts/annotate_dependency_hints.py) raises metonymic F1 by roughly 64% (0.0220 -> 0.0360) and coverage from 40% to 63%, with metonymic precision also improving slightly (0.185 -> 0.197). Both frontends route through the identical compiled Agda runtimeCheck. The gain is smaller than on WiMCor, consistent with ConMeC's broader mix of metonymy categories (container/producer/location/possessed) beyond the location-institution family this frontend change most directly helps. The no-verbnet ablation is again byte-identical to full for both frontends."
+}
