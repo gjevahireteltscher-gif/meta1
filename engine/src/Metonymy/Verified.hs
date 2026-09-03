@@ -55,6 +55,26 @@ verifyPreferenceRuntimeWithAgda knowledgeBase predicates candidate =
     predicates
     candidate
 
+-- | A single-shot combined check: compiled Agda's
+-- @contextualRuntimeCheck@ is literally @runtimeCheck before after raw
+-- \`and\` contextLayerCheck ... (rawTarget raw)@ (formal/Metonymy/Checker.agda)
+-- -- the flat pipeline's one-rewrite @HardCell@-style verification ANDed
+-- with exactly one tower context layer, both proven Sound and Complete.
+--
+-- It is NOT what the production @contextual-fiber@/@contextual-contract@
+-- CLI path (Metonymy.ContextualChecked) actually calls at runtime: that
+-- code calls 'verifyContextLayerWithAgda' once per stage as the tower is
+-- built up, not this function once for a single combined rewrite+layer.
+-- This function predates that iterative design and is kept because it is
+-- independently correct (compiled and formally proven, not merely
+-- unused-and-untested) and its tests in engine/test/Main.hs exercise the
+-- same Context->RawContext Agda-FFI marshaling
+-- ('toAgdaContext'/'toAgdaContextConstraint') that
+-- 'verifyContextLayerWithAgda' also depends on in production. Removing it
+-- would need touching the matching Agda theorems
+-- (@contextualRuntimeCheckSound@/@contextualRuntimeCheckComplete@) and
+-- would drop that FFI-marshaling coverage, for no behavioral gain since
+-- nothing calls it -- so it stays, documented rather than deleted.
 verifyContextualRuntimeWithAgda ::
   Snapshot ->
   [Predicate] ->

@@ -1,3 +1,9 @@
+-- | The production tower path: every stage of a Context's constraint list
+-- is independently re-verified against compiled Agda's
+-- @contextLayerCheck@ (via 'verifyContextLayerWithAgda'), not
+-- 'Metonymy.Verified.verifyContextualRuntimeWithAgda''s single combined
+-- rewrite+one-layer check -- see that function's own docs for why both
+-- exist.
 module Metonymy.ContextualChecked
   ( contextualFiberChecked
   , ContextualContraction (..)

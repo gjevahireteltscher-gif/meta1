@@ -713,8 +713,6 @@ def compile_gf_constraints(
                         modifier.constructor
                     ]
                     accepted_constructions = {construction}
-                    if construction == "ModifyNP+InPP":
-                        accepted_constructions.add("ModIn")
                     template = next(
                         (
                             rule

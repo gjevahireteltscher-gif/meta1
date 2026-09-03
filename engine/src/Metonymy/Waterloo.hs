@@ -6,6 +6,12 @@ module Metonymy.Waterloo
 import Metonymy.Contextual
 import Metonymy.Types
 
+-- The object NP is ModifyNP(programme, InPP(physics)), matching how
+-- Metonymy.gf's current grammar actually nests these two constructors
+-- (ModifyNP : NP -> PP -> NP, InPP : NP -> PP) -- not the single flat
+-- "ModIn" node this fixture used before the grammar settled on that
+-- shape. collectConstraints/treeAnchors flatten depth-first regardless of
+-- nesting, so this produces the exact same leaf sequence as the old tree.
 waterlooTree :: LexicalTree
 waterlooTree =
   LexicalApply
@@ -17,13 +23,16 @@ waterlooTree =
                   (anchor "Verb" "announce" "announced" 9 18)
                   [Requires (AnyOf [HasSort Animate, HasSort Organization])]
               , LexicalApply
-                  "ModIn"
+                  "ModifyNP"
                   [ LexicalLeaf
                       (anchor "Noun" "programme" "programme" 25 34)
                       []
-                  , LexicalLeaf
-                      (anchor "Noun" "physics" "physics" 38 45)
-                      [RequiresRelation Conducts physics]
+                  , LexicalApply
+                      "InPP"
+                      [ LexicalLeaf
+                          (anchor "Noun" "physics" "physics" 38 45)
+                          [RequiresRelation Conducts physics]
+                      ]
                   ]
               ]
           ]

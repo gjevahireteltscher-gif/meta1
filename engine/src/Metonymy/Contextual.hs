@@ -50,6 +50,28 @@ data LexicalTree
   | LexicalApply String [LexicalTree]
   deriving stock (Eq, Show)
 
+-- | contextTree and contextConstraints are two views of the same lexical
+-- structure: the tree records the surface constituent shape (for
+-- validateTree's construction allowlist), while the flat constraint list
+-- is what contextualFiber actually applies stage by stage. They are kept
+-- as separate fields rather than computing one from the other on every
+-- access, but that means nothing in this module enforces they agree.
+--
+-- 'Metonymy.Elaborator.elaborateContext' is the only constructor that
+-- guarantees consistency: it derives contextConstraints from the tree via
+-- collectConstraints, so origin and payload always match by construction
+-- (constraintProvenance is always the placeholder "lexical-tree" on that
+-- path, since a bare LexicalTree carries no real per-constraint
+-- provenance). Call sites that need real provenance strings per
+-- constraint -- Metonymy.ContextSpec's TSV scenario parser,
+-- Metonymy.Waterloo's hand-written fixture -- construct both fields
+-- directly instead, and are responsible for keeping the tree's leaf
+-- anchors/payloads in the same order as contextConstraints; nothing here
+-- checks that automatically, so a change to one side without the other is
+-- a real, silent way to desync them. engine/test/Main.hs's "Waterloo tree
+-- elaborates with ordered lexical origins" test partially guards this for
+-- the Waterloo fixture by comparing elaborateContext's derived
+-- (origin, payload) sequence against the hand-written one.
 data Context = Context
   { contextTree :: LexicalTree
   , contextSnapshotHash :: String

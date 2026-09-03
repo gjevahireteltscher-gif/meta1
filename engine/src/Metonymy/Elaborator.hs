@@ -227,7 +227,6 @@ supportedConstructions =
   , "Compl"
   , "NP"
   , "PP"
-  , "ModIn"
   , "Negate"
   , "Quantify"
   , "NegPred"
