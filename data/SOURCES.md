@@ -101,6 +101,42 @@ the default `scripts/bootstrap.sh` path, so the base reproducibility
 guarantee (`make test`) never depends on network access to Stanza's model
 registry. See `docs/evaluation.md` for the opt-in install step.
 
+## Wikidata live-API runtime index (entity linking at scale)
+
+`scripts/build_wikidata_api_index.py` populates the exact same offline
+SQLite schema as `scripts/build_wikidata_runtime_index.py build` (the
+full-dump indexer), but sources it from Wikidata's live
+`wbsearchentities`/`wbgetentities`/SPARQL endpoints instead of a 100+ GB
+local dump. It resolves a bounded seed set of corpus mention surfaces
+(exact label/alias match only; an ambiguous surface yields every exact
+candidate rather than a guess, same policy as
+`scripts/build_wikidata_linker_cache.py`), expands a bounded number of
+hops along the same property set used elsewhere in this pipeline, and
+fetches full entity records for the resulting closure. The resulting
+`.sqlite` file is a drop-in input to `build_wikidata_runtime_index.py`'s
+own `lookup`/`materialize` subcommands and to
+`build_wikidata_linker_cache.py` — none of those consumers change.
+
+This is explicitly a *bounded* index, not a substitute for the full dump:
+it only ever contains entities reachable within `--depth` hops of the
+given seeds, capped by `--max-entities`. A snapshot materialized from it
+can therefore obstruct on a real-world relation that the full dump would
+have witnessed; that is an honest "missing snapshot witness," the same
+category of limitation `docs/contextual-tower.md` already documents for
+every finite snapshot, not a new one.
+
+**Reproducibility caveat**: unlike a pinned dump file, Wikidata's live
+content changes over time, so re-running this script against the same
+seed list months later is not expected to reproduce byte-identical
+output. The index's `source_sha256` metadata field pins exactly what one
+particular run ingested (a content hash over the fetched entity records,
+not a claim that Wikidata itself is static); a `materialize`d snapshot
+built from that index is still fully hash-verified and frozen from that
+point on via its own `graph_sha256`, exactly as with the dump-sourced
+path — only the *upstream* provenance differs in kind, not the downstream
+guarantee. Retrieval endpoint and timestamp are recorded alongside the
+content hash for the same reason.
+
 ## Endpoint linker snapshot
 
 `entity-link-snapshot.tsv` is a small, independently maintained CC0

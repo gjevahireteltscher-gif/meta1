@@ -97,6 +97,29 @@ python3 scripts/build_wikidata_runtime_index.py lookup \
   --alias "Waterloo"
 ```
 
+### Live-API runtime index (no dump download)
+
+For entity linking at the scale of one corpus's distinct mention surfaces
+(not the whole graph), `scripts/build_wikidata_api_index.py` populates the
+same SQLite schema directly from Wikidata's live API, so the dump download
+above can be skipped entirely:
+
+```bash
+python3 scripts/build_wikidata_api_index.py \
+  --database build/wikidata-api-runtime.sqlite \
+  --dataset evaluation/contextual-multidomain/audited-inputs.jsonl \
+  --dataset-field source \
+  --depth 1 --max-entities 5000
+```
+
+The resulting `.sqlite` file is a drop-in replacement for the dump-built
+index above: `lookup`, `build_wikidata_linker_cache.py`, and `materialize`
+(both shown next) all work against it unchanged. It only ever knows about
+entities reachable within `--depth` hops of the corpus's own mention
+surfaces, so it is deliberately narrower than a full-dump index; see
+data/SOURCES.md for the reproducibility caveat that comes with sourcing it
+live instead of from a pinned dump file.
+
 Build a batch linker cache from unlabelled inference inputs; ambiguous aliases
 are recorded as ambiguity rather than guessed:
 
