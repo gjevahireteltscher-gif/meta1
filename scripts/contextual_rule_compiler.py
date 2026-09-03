@@ -211,11 +211,14 @@ def resolve_action(
         and governing_end is not None
         and dependency_hint.get("hole_role")
     ):
+        # annotate_dependency_hints.py reports "Subject"/"Object";
+        # ActionRole.hole_role uses "SubjectHole"/"ObjectHole".
+        hint_hole_role = dependency_hint["hole_role"] + "Hole"
         governing_lemma = (dependency_hint.get("governing_lemma") or "").casefold()
         candidates = [
             (0, governing_start, governing_end, sentence[governing_start:governing_end].casefold(), role)
             for role in by_form.get(governing_lemma, [])
-            if role.hole_role == dependency_hint["hole_role"]
+            if role.hole_role == hint_hole_role
         ]
     else:
         target_span = _mention_span(sentence, target_surfaces)
