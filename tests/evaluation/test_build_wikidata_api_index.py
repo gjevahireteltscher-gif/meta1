@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import io
 import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +20,7 @@ from build_wikidata_api_index import (  # noqa: E402
     expand_neighbors,
     fetch_entities_batch,
     populate_index,
+    request_json,
     search_exact,
 )
 from build_wikidata_runtime_index import initialise  # noqa: E402
@@ -363,6 +367,100 @@ class ContentSha256Tests(unittest.TestCase):
     def test_is_deterministic_for_the_same_input(self) -> None:
         records = [{"id": "Q1"}, {"id": "Q2"}]
         self.assertEqual(content_sha256(records), content_sha256(records))
+
+
+def _fake_response(payload: dict):
+    return io.BytesIO(__import__("json").dumps(payload).encode("utf-8"))
+
+
+class RequestJsonRetryTests(unittest.TestCase):
+    """A real run hit HTTP 429 on a plain sequential search loop with no
+    retry at all -- these lock in that request_json now backs off and
+    retries instead of failing the whole run on the first rate limit.
+    """
+
+    def test_succeeds_immediately_with_no_retry_needed(self) -> None:
+        with patch("build_wikidata_api_index.urlopen") as mock_urlopen, patch(
+            "build_wikidata_api_index.time.sleep"
+        ) as mock_sleep:
+            mock_urlopen.return_value.__enter__.return_value = _fake_response({"ok": True})
+            result = request_json("https://example/x", "ua")
+        self.assertEqual(result, {"ok": True})
+        mock_sleep.assert_not_called()
+
+    def test_retries_after_a_429_and_then_succeeds(self) -> None:
+        error = HTTPError("https://example/x", 429, "Too Many Requests", {}, None)
+        success = io.StringIO()
+        with patch("build_wikidata_api_index.urlopen") as mock_urlopen, patch(
+            "build_wikidata_api_index.time.sleep"
+        ) as mock_sleep:
+            mock_urlopen.side_effect = [
+                error,
+                _managed(_fake_response({"ok": True})),
+            ]
+            result = request_json(
+                "https://example/x", "ua", max_retries=3, backoff_base=1.0
+            )
+        self.assertEqual(result, {"ok": True})
+        mock_sleep.assert_called_once()
+
+    def test_respects_a_numeric_retry_after_header(self) -> None:
+        from email.message import Message
+
+        headers = Message()
+        headers["Retry-After"] = "7"
+        error = HTTPError("https://example/x", 429, "Too Many Requests", headers, None)
+        with patch("build_wikidata_api_index.urlopen") as mock_urlopen, patch(
+            "build_wikidata_api_index.time.sleep"
+        ) as mock_sleep:
+            mock_urlopen.side_effect = [error, _managed(_fake_response({"ok": True}))]
+            request_json("https://example/x", "ua", max_retries=3)
+        mock_sleep.assert_called_once_with(7.0)
+
+    def test_non_retryable_status_raises_immediately(self) -> None:
+        error = HTTPError("https://example/x", 404, "Not Found", {}, None)
+        with patch("build_wikidata_api_index.urlopen") as mock_urlopen, patch(
+            "build_wikidata_api_index.time.sleep"
+        ) as mock_sleep:
+            mock_urlopen.side_effect = error
+            with self.assertRaises(HTTPError):
+                request_json("https://example/x", "ua", max_retries=3)
+        mock_sleep.assert_not_called()
+
+    def test_gives_up_after_max_retries(self) -> None:
+        error = HTTPError("https://example/x", 429, "Too Many Requests", {}, None)
+        with patch("build_wikidata_api_index.urlopen") as mock_urlopen, patch(
+            "build_wikidata_api_index.time.sleep"
+        ):
+            mock_urlopen.side_effect = error
+            with self.assertRaises(HTTPError):
+                request_json("https://example/x", "ua", max_retries=2)
+        self.assertEqual(mock_urlopen.call_count, 3)  # initial + 2 retries
+
+    def test_connection_error_is_retried_too(self) -> None:
+        with patch("build_wikidata_api_index.urlopen") as mock_urlopen, patch(
+            "build_wikidata_api_index.time.sleep"
+        ) as mock_sleep:
+            mock_urlopen.side_effect = [
+                URLError("connection reset"),
+                _managed(_fake_response({"ok": True})),
+            ]
+            result = request_json("https://example/x", "ua", max_retries=3)
+        self.assertEqual(result, {"ok": True})
+        mock_sleep.assert_called_once()
+
+
+class _managed:
+    """Wrap a plain file-like object so it works as urlopen's context manager."""
+
+    def __init__(self, response) -> None:
+        self._response = response
+
+    def __enter__(self):
+        return self._response
+
+    def __exit__(self, *exc_info) -> bool:
+        return False
 
 
 if __name__ == "__main__":

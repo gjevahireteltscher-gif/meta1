@@ -39,6 +39,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -58,10 +59,48 @@ USER_AGENT = "metonymy-research/1.0 (contextual-tower entity linking; offline sn
 SEARCH_BATCH = 40
 
 
-def request_json(url: str, user_agent: str, timeout: int = 60) -> dict:
+RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
+
+
+def request_json(
+    url: str,
+    user_agent: str,
+    timeout: int = 60,
+    max_retries: int = 6,
+    backoff_base: float = 1.0,
+) -> dict:
+    """Fetch one URL as JSON, retrying transient failures with backoff.
+
+    Wikidata's public API rate-limits aggressively for unauthenticated
+    traffic, especially from a shared CI-runner IP range -- a real run
+    hit HTTP 429 on a plain sequential wbsearchentities loop with no
+    retry at all. Honors a numeric ``Retry-After`` header when the server
+    sends one; otherwise backs off exponentially (backoff_base * 2**n,
+    capped at 60s). Retries connection-level failures (URLError) the same
+    way, since those are just as common on a noisy shared runner.
+    """
     request = Request(url, headers={"User-Agent": user_agent})
-    with urlopen(request, timeout=timeout) as response:
-        return json.load(response)
+    attempt = 0
+    while True:
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                return json.load(response)
+        except HTTPError as error:
+            attempt += 1
+            if error.code not in RETRYABLE_HTTP_CODES or attempt > max_retries:
+                raise
+            retry_after = error.headers.get("Retry-After") if error.headers else None
+            delay = (
+                float(retry_after)
+                if retry_after and retry_after.isdigit()
+                else min(60.0, backoff_base * (2 ** (attempt - 1)))
+            )
+        except URLError:
+            attempt += 1
+            if attempt > max_retries:
+                raise
+            delay = min(60.0, backoff_base * (2 ** (attempt - 1)))
+        time.sleep(delay)
 
 
 def search_exact(
@@ -337,7 +376,15 @@ def main() -> None:
     parser.add_argument("--api-endpoint", default=API_ENDPOINT)
     parser.add_argument("--sparql-endpoint", default=SPARQL_ENDPOINT)
     parser.add_argument("--user-agent", default=USER_AGENT)
-    parser.add_argument("--request-delay", type=float, default=0.1)
+    parser.add_argument(
+        "--request-delay",
+        type=float,
+        default=0.3,
+        help="pause between successful requests, seconds (default: 0.3 -- "
+        "a real run on a shared CI-runner IP hit 429s at a shorter delay "
+        "even with retry/backoff in place; request_json still retries any "
+        "429/5xx that happens anyway)",
+    )
     args = parser.parse_args()
 
     if not args.seeds and not args.dataset and not args.seed_qid:
