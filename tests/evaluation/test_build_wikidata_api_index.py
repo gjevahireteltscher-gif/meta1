@@ -370,6 +370,113 @@ class BuildApiIndexEndToEndTests(unittest.TestCase):
         self.assertEqual(summary["resolved_qids"], ["Q649"])
         self.assertEqual(summary["closure_qids"], 2)  # Q649 and Q2 both ingested
 
+    def test_truncation_to_max_entities_prioritizes_resolved_over_closure(self) -> None:
+        # 3 surfaces resolve to Q1/Q2/Q3 directly; SPARQL expansion offers
+        # 10 more neighbors. max_entities=5 can't fit everything -- the
+        # resolved mentions must all survive; only closure gets trimmed.
+        def fetch(url: str) -> dict:
+            params = query_params(url)
+            if params.get("action") == "wbsearchentities":
+                surface = params["search"]
+                index = {"Alpha": "Q1", "Beta": "Q2", "Gamma": "Q3"}.get(surface)
+                if index:
+                    return {"search": [{"id": index, "match": {"text": surface}}]}
+                return {"search": []}
+            if "query" in params:
+                return {
+                    "results": {
+                        "bindings": [
+                            {
+                                "item": {
+                                    "value": f"http://www.wikidata.org/entity/Q{n}"
+                                }
+                            }
+                            for n in range(100, 110)
+                        ]
+                    }
+                }
+            if params.get("action") == "wbgetentities":
+                ids = params["ids"].split("|")
+                return {
+                    "entities": {
+                        qid: {"id": qid, "labels": {}, "aliases": {}, "claims": {}}
+                        for qid in ids
+                    }
+                }
+            raise AssertionError(f"unexpected request: {url}")
+
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "runtime.sqlite"
+            summary = build_api_index(
+                fetch,
+                database,
+                {"Alpha", "Beta", "Gamma"},
+                set(),
+                "en",
+                depth=1,
+                max_entities=5,
+                properties=("P31",),
+                api_endpoint="https://www.wikidata.org/w/api.php",
+                sparql_endpoint="https://query.wikidata.org/sparql",
+            )
+        self.assertEqual(summary["resolved_qids"], ["Q1", "Q2", "Q3"])
+        self.assertEqual(summary["entities_indexed"], 5)
+        self.assertEqual(summary["closure_qids"], 5)
+
+    def test_resolved_qids_never_exceeds_what_was_actually_ingested(self) -> None:
+        # A single wildly-ambiguous surface resolves to 5 QIDs by itself --
+        # more than max_entities. resolved_qids must only report the ones
+        # that survived truncation and were actually fetched/ingested, or
+        # materialize's --source-qid seeding would reject the rest with
+        # "source QIDs absent from runtime index" (the real failure this
+        # regression test exists for).
+        def fetch(url: str) -> dict:
+            params = query_params(url)
+            if params.get("action") == "wbsearchentities":
+                return {
+                    "search": [
+                        {"id": f"Q{n}", "match": {"text": "Ambiguous"}}
+                        for n in range(1, 6)
+                    ]
+                }
+            if "query" in params:
+                return {"results": {"bindings": []}}
+            if params.get("action") == "wbgetentities":
+                ids = params["ids"].split("|")
+                return {
+                    "entities": {
+                        qid: {"id": qid, "labels": {}, "aliases": {}, "claims": {}}
+                        for qid in ids
+                    }
+                }
+            raise AssertionError(f"unexpected request: {url}")
+
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "runtime.sqlite"
+            summary = build_api_index(
+                fetch,
+                database,
+                {"Ambiguous"},
+                set(),
+                "en",
+                depth=1,
+                max_entities=3,
+                properties=("P31",),
+                api_endpoint="https://www.wikidata.org/w/api.php",
+                sparql_endpoint="https://query.wikidata.org/sparql",
+            )
+            self.assertEqual(len(summary["resolved_qids"]), 3)
+            self.assertEqual(summary["entities_indexed"], 3)
+            connection = sqlite3.connect(database)
+            indexed = {
+                row[0] for row in connection.execute("SELECT qid FROM entities")
+            }
+            connection.close()
+        # Every reported resolved_qid must actually be queryable -- this is
+        # exactly the invariant build_wikidata_runtime_index.py materialize
+        # relies on when it looks each --source-qid up before walking.
+        self.assertTrue(set(summary["resolved_qids"]).issubset(indexed))
+
     def test_explicit_seed_qid_is_ingested_even_without_a_matching_surface(self) -> None:
         def fetch(url: str) -> dict:
             params = query_params(url)

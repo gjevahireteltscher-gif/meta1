@@ -312,7 +312,17 @@ def build_api_index(
     )
     all_qids = resolved | closure
     if len(all_qids) > max_entities:
-        all_qids = set(sorted(all_qids)[:max_entities])
+        # The corpus's own resolved mentions take priority over expanded
+        # neighbors when trimming to max_entities: an alphabetical
+        # truncation of the combined set could drop resolved QIDs while
+        # keeping closure ones, which is backwards -- resolved_qids below
+        # (and materialize's --source-qid seeding) exists specifically to
+        # walk from what the corpus actually names.
+        if len(resolved) >= max_entities:
+            all_qids = set(sorted(resolved)[:max_entities])
+        else:
+            room = max_entities - len(resolved)
+            all_qids = resolved | set(sorted(closure - resolved)[:room])
 
     records = fetch_entities_batch(fetch_json, api_endpoint, all_qids, language)
 
@@ -347,7 +357,12 @@ def build_api_index(
         "resolved_surfaces": len(surfaces) - len(unresolved_surfaces),
         "unresolved_surfaces": len(unresolved_surfaces),
         "seed_qids": len(resolved),
-        "resolved_qids": sorted(resolved),
+        # Only the resolved QIDs that actually survived --max-entities
+        # truncation and were ingested -- not the full pre-truncation
+        # resolved set, which build_wikidata_runtime_index.py materialize
+        # would then reject with "source QIDs absent from runtime index"
+        # for every one of them that didn't make it in.
+        "resolved_qids": sorted(resolved & all_qids),
         "closure_qids": len(all_qids),
         "entities_indexed": inserted,
         "source_sha256": digest,
