@@ -46,6 +46,62 @@ class LiteralReasonTests(unittest.TestCase):
         self.assertNotIn("sentence", literal_reason(row))
         self.assertNotIn("traceback", literal_reason(row))
 
+    def test_exit1_extracts_the_specific_error_token_from_the_failure_text(
+        self,
+    ) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": (
+                "Traceback (most recent call last):\n"
+                "ValueError: unsupported-action-role"
+            ),
+        }
+        self.assertEqual(literal_reason(row), "failed:exit1:unsupported-action-role")
+
+    def test_exit1_distinguishes_different_known_tokens(self) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "ValueError: nested-modifier-unsupported",
+        }
+        self.assertEqual(literal_reason(row), "failed:exit1:nested-modifier-unsupported")
+
+    def test_exit1_with_no_known_token_is_unrecognized_not_a_crash(self) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "some completely different, unanticipated crash",
+        }
+        self.assertEqual(literal_reason(row), "failed:exit1:unrecognized")
+
+    def test_exit1_with_no_failure_field_at_all_is_unrecognized_not_a_crash(
+        self,
+    ) -> None:
+        row = {"id": "a", "status": "failed", "exit_code": 1}
+        self.assertEqual(literal_reason(row), "failed:exit1:unrecognized")
+
+    def test_exit1_token_extraction_never_leaks_the_surrounding_traceback_text(
+        self,
+    ) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": (
+                'gf_sentence="Waterloo confabulates a treaty"\n'
+                "ValueError: unsupported-action-role"
+            ),
+        }
+        reason = literal_reason(row)
+        self.assertEqual(reason, "failed:exit1:unsupported-action-role")
+        self.assertNotIn("Waterloo", reason)
+        self.assertNotIn("confabulates", reason)
+        self.assertNotIn("treaty", reason)
+
 
 class ScoreTests(unittest.TestCase):
     def test_true_positive_true_negative_false_positive_false_negative(self) -> None:

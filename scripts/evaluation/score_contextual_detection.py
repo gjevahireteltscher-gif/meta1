@@ -43,21 +43,52 @@ def predict(inference_row: dict) -> str:
     return "literal"
 
 
+# Every short, fixed error token resolve_action/propose_contextual_scenario.py
+# can raise (contextual_rule_compiler.py, propose_contextual_scenario.py).
+# These strings never contain sentence text -- they are the *names* of
+# failure conditions -- so matching one out of a subprocess's combined
+# stdout+stderr traceback and reporting only the matched token, never the
+# surrounding text, stays safe to upload even though the untruncated
+# traceback (which does echo sentence text -- e.g. propose_contextual_scenario.py
+# prints the offending gf_sentence/gf_tree on some failures) is not.
+KNOWN_FAILURE_TOKENS = (
+    "target-occurrence-not-found",
+    "unsupported-action-role",
+    "nested-modifier-unsupported",
+    "source-qid-unresolved",
+    "contract-target-qid-unresolved",
+    "unsupported-linker-cache-schema",
+)
+
+
 def literal_reason(inference_row: dict) -> str:
     """A text-free tag for why a row predicted "literal" -- status plus
     exit code (run_automatic_contextual_pipeline.py uses a distinct exit
     code per failure kind: 3 gf-parse-failed, 4 semantic-composition-
-    failed, 5 contract-target-qid-unresolved, 1 everything resolve_action/
-    propose_contextual_scenario.py itself raises, e.g.
-    target-occurrence-not-found/unsupported-action-role/nested-modifier-
-    unsupported/source-qid-unresolved -- lumped together under 1, but
-    still distinguishable from a GF or composition failure). Carries no
-    sentence text, so this is safe to upload as a CI artifact even though
-    the inference row it's drawn from is not.
+    failed, 5 contract-target-qid-unresolved, 2 source-qid-unresolved -- a
+    resolved target_surface has no unique QID in the snapshot's own
+    aliases.jsonl). Exit 1 covers everything resolve_action/
+    propose_contextual_scenario.py itself raises as a ValueError
+    (target-occurrence-not-found/unsupported-action-role/nested-modifier-
+    unsupported), which reaches run_automatic_contextual_pipeline.py as an
+    uncaught CalledProcessError from its own `subprocess.run(...,
+    check=True)` call -- the exit code alone can't tell those apart, so
+    for exit 1 this also searches the row's own "failure" text (never
+    exposed itself) for one of KNOWN_FAILURE_TOKENS and reports only the
+    matched token name, or "failed:exit1:unrecognized" if none match.
+    Carries no sentence text either way, so this is safe to upload as a CI
+    artifact even though the inference row it's drawn from is not.
     """
     if inference_row.get("status") == "ok":
         return "ok:empty-fiber"
-    return f"failed:exit{inference_row.get('exit_code', 'unknown')}"
+    exit_code = inference_row.get("exit_code", "unknown")
+    if exit_code == 1:
+        failure_text = inference_row.get("failure", "")
+        for token in KNOWN_FAILURE_TOKENS:
+            if token in failure_text:
+                return f"failed:exit1:{token}"
+        return "failed:exit1:unrecognized"
+    return f"failed:exit{exit_code}"
 
 
 def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
