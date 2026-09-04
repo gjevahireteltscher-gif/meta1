@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "evaluation"))
 
-from score_contextual_detection import predict, score  # noqa: E402
+from score_contextual_detection import literal_reason, predict, score  # noqa: E402
 
 
 def ok_row(id_: str, fiber: list[str]) -> dict:
@@ -27,6 +27,24 @@ class PredictTests(unittest.TestCase):
 
     def test_failed_run_is_literal_regardless_of_fiber_field(self) -> None:
         self.assertEqual(predict(failed_row("a")), "literal")
+
+
+class LiteralReasonTests(unittest.TestCase):
+    def test_failed_row_reports_its_exit_code(self) -> None:
+        self.assertEqual(literal_reason(failed_row("a", exit_code=5)), "failed:exit5")
+
+    def test_ok_row_with_empty_fiber_is_tagged_distinctly(self) -> None:
+        self.assertEqual(literal_reason(ok_row("a", [])), "ok:empty-fiber")
+
+    def test_carries_no_sentence_text(self) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 3,
+            "failure": "some sentence text and a traceback",
+        }
+        self.assertNotIn("sentence", literal_reason(row))
+        self.assertNotIn("traceback", literal_reason(row))
 
 
 class ScoreTests(unittest.TestCase):
@@ -90,16 +108,25 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(report["recall"], 0.0)
         self.assertIsNone(report["f1"])
 
-    def test_literal_prediction_reasons_are_tallied_by_status(self) -> None:
-        inference = [failed_row("a"), failed_row("b"), ok_row("c", [])]
+    def test_literal_prediction_reasons_are_tallied_by_status_and_exit_code(
+        self,
+    ) -> None:
+        inference = [
+            failed_row("a", exit_code=3),
+            failed_row("b", exit_code=3),
+            failed_row("d", exit_code=4),
+            ok_row("c", []),
+        ]
         gold = [
             {"id": "a", "gold_label": "literal", "gold_bridge_family": None},
             {"id": "b", "gold_label": "metonymic", "gold_bridge_family": "x"},
             {"id": "c", "gold_label": "literal", "gold_bridge_family": None},
+            {"id": "d", "gold_label": "literal", "gold_bridge_family": None},
         ]
         report = score(inference, gold)
         self.assertEqual(
-            report["literal_prediction_reasons"], {"failed": 2, "ok": 1}
+            report["literal_prediction_reasons"],
+            {"failed:exit3": 2, "failed:exit4": 1, "ok:empty-fiber": 1},
         )
 
 

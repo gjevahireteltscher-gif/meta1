@@ -117,11 +117,14 @@ jobs:
             --database build/wikidata-api-runtime.sqlite \
             --dataset build/evaluation/pooled.tower-sentences.jsonl \
             --dataset-field source \
-            --depth 1 --max-entities 4000
-          python3 scripts/list_runtime_index_qids.py \
-            --database build/wikidata-api-runtime.sqlite \
-            --output build/wikidata-api-source-qids.txt
-          mapfile -t SOURCE_QIDS < build/wikidata-api-source-qids.txt
+            --depth 1 --max-entities 2000 \
+            --resolved-qids-output build/wikidata-api-resolved-qids.txt
+          # Seed materialize with only the corpus's own resolved mentions,
+          # not every ingested entity (seeds and SPARQL-expanded neighbors
+          # alike) -- the latter made materialize's own bounded walk
+          # redundantly re-walk from thousands of points instead of a few
+          # hundred, and took ~30 minutes on the first real run.
+          mapfile -t SOURCE_QIDS < build/wikidata-api-resolved-qids.txt
           SOURCE_QID_ARGS=()
           for qid in "${SOURCE_QIDS[@]}"; do
             SOURCE_QID_ARGS+=(--source-qid "$qid")

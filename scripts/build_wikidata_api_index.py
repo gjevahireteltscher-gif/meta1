@@ -347,6 +347,7 @@ def build_api_index(
         "resolved_surfaces": len(surfaces) - len(unresolved_surfaces),
         "unresolved_surfaces": len(unresolved_surfaces),
         "seed_qids": len(resolved),
+        "resolved_qids": sorted(resolved),
         "closure_qids": len(all_qids),
         "entities_indexed": inserted,
         "source_sha256": digest,
@@ -385,6 +386,17 @@ def main() -> None:
         "even with retry/backoff in place; request_json still retries any "
         "429/5xx that happens anyway)",
     )
+    parser.add_argument(
+        "--resolved-qids-output",
+        type=Path,
+        help="write the seed QIDs resolved directly from surfaces/--seed-qid "
+        "(before SPARQL neighbor expansion), one per line -- the right "
+        "--source-qid seed list for build_wikidata_runtime_index.py "
+        "materialize's own bounded walk, since passing every ingested "
+        "entity (seeds and expanded neighbors alike) makes materialize "
+        "redundantly re-walk from thousands of points instead of just the "
+        "corpus's own mentions",
+    )
     args = parser.parse_args()
 
     if not args.seeds and not args.dataset and not args.seed_qid:
@@ -410,6 +422,12 @@ def main() -> None:
         args.api_endpoint,
         args.sparql_endpoint,
     )
+    resolved_qids = summary.pop("resolved_qids")
+    if args.resolved_qids_output is not None:
+        args.resolved_qids_output.parent.mkdir(parents=True, exist_ok=True)
+        args.resolved_qids_output.write_text(
+            "".join(qid + "\n" for qid in resolved_qids), encoding="utf-8"
+        )
     print(json.dumps(summary, sort_keys=True))
 
 

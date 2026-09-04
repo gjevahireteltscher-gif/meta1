@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import sqlite3
 import sys
@@ -13,6 +14,7 @@ from urllib.parse import parse_qs, urlparse
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import build_wikidata_api_index  # noqa: E402
 from build_wikidata_api_index import (  # noqa: E402
     build_api_index,
     collect_seed_surfaces,
@@ -320,6 +322,54 @@ class BuildApiIndexEndToEndTests(unittest.TestCase):
             )
             connection.close()
 
+    def test_resolved_qids_excludes_sparql_expanded_neighbors(self) -> None:
+        # Q649 resolves directly from the surface "Waterloo"; Q2 only shows
+        # up via SPARQL neighbor expansion. resolved_qids is meant to seed
+        # build_wikidata_runtime_index.py materialize's own bounded walk,
+        # so it must be just the corpus's own mentions (Q649), not every
+        # entity this run happened to ingest (Q649 and Q2) -- passing the
+        # full ingested set as materialize's seeds made a real run redo a
+        # bounded walk redundantly from thousands of points instead of a
+        # few hundred.
+        def fetch(url: str) -> dict:
+            params = query_params(url)
+            if params.get("action") == "wbsearchentities":
+                return {"search": [{"id": "Q649", "match": {"text": "Waterloo"}}]}
+            if "query" in params:
+                return {
+                    "results": {
+                        "bindings": [
+                            {"item": {"value": "http://www.wikidata.org/entity/Q2"}}
+                        ]
+                    }
+                }
+            if params.get("action") == "wbgetentities":
+                ids = params["ids"].split("|")
+                return {
+                    "entities": {
+                        qid: {"id": qid, "labels": {}, "aliases": {}, "claims": {}}
+                        for qid in ids
+                    }
+                }
+            raise AssertionError(f"unexpected request: {url}")
+
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "runtime.sqlite"
+            summary = build_api_index(
+                fetch,
+                database,
+                {"Waterloo"},
+                set(),
+                "en",
+                depth=1,
+                max_entities=100,
+                properties=("P31",),
+                api_endpoint="https://www.wikidata.org/w/api.php",
+                sparql_endpoint="https://query.wikidata.org/sparql",
+            )
+        self.assertEqual(summary["resolved_qids"], ["Q649"])
+        self.assertEqual(summary["closure_qids"], 2)  # Q649 and Q2 both ingested
+
     def test_explicit_seed_qid_is_ingested_even_without_a_matching_surface(self) -> None:
         def fetch(url: str) -> dict:
             params = query_params(url)
@@ -356,6 +406,45 @@ class BuildApiIndexEndToEndTests(unittest.TestCase):
             )
             self.assertEqual(summary["seed_qids"], 1)
             self.assertEqual(summary["entities_indexed"], 1)
+
+
+class MainResolvedQidsOutputTests(unittest.TestCase):
+    def test_writes_resolved_qids_to_the_requested_file_and_omits_them_from_stdout(
+        self,
+    ) -> None:
+        canned_summary = {
+            "seed_surfaces": 1,
+            "resolved_surfaces": 1,
+            "unresolved_surfaces": 0,
+            "seed_qids": 1,
+            "resolved_qids": ["Q649"],
+            "closure_qids": 2,
+            "entities_indexed": 2,
+            "source_sha256": "deadbeef",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "runtime.sqlite"
+            resolved_output = Path(directory) / "resolved-qids.txt"
+            sys.argv = [
+                "build_wikidata_api_index.py",
+                "--database",
+                str(database),
+                "--seed-qid",
+                "Q649",
+                "--resolved-qids-output",
+                str(resolved_output),
+            ]
+            stdout = io.StringIO()
+            with patch.object(
+                build_wikidata_api_index,
+                "build_api_index",
+                return_value=canned_summary,
+            ):
+                with contextlib.redirect_stdout(stdout):
+                    build_wikidata_api_index.main()
+            self.assertEqual(resolved_output.read_text(encoding="utf-8"), "Q649\n")
+            self.assertNotIn("resolved_qids", stdout.getvalue())
+            self.assertIn("entities_indexed", stdout.getvalue())
 
 
 class ContentSha256Tests(unittest.TestCase):

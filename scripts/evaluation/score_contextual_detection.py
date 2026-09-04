@@ -43,6 +43,23 @@ def predict(inference_row: dict) -> str:
     return "literal"
 
 
+def literal_reason(inference_row: dict) -> str:
+    """A text-free tag for why a row predicted "literal" -- status plus
+    exit code (run_automatic_contextual_pipeline.py uses a distinct exit
+    code per failure kind: 3 gf-parse-failed, 4 semantic-composition-
+    failed, 5 contract-target-qid-unresolved, 1 everything resolve_action/
+    propose_contextual_scenario.py itself raises, e.g.
+    target-occurrence-not-found/unsupported-action-role/nested-modifier-
+    unsupported/source-qid-unresolved -- lumped together under 1, but
+    still distinguishable from a GF or composition failure). Carries no
+    sentence text, so this is safe to upload as a CI artifact even though
+    the inference row it's drawn from is not.
+    """
+    if inference_row.get("status") == "ok":
+        return "ok:empty-fiber"
+    return f"failed:exit{inference_row.get('exit_code', 'unknown')}"
+
+
 def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
     inference_by_id = {row["id"]: row for row in inference_rows}
     true_positive = false_positive = true_negative = false_negative = 0
@@ -64,7 +81,7 @@ def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
         else:
             false_negative += 1
         if predicted == "literal":
-            literal_prediction_reasons[inference_row.get("status", "unknown")] += 1
+            literal_prediction_reasons[literal_reason(inference_row)] += 1
 
     precision = (
         true_positive / (true_positive + false_positive)
