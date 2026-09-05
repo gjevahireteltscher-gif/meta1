@@ -122,12 +122,24 @@ class QidFiberTests(unittest.TestCase):
             cwd=ROOT,
         )
         self.assertIn("action=declare role=SubjectHole", completed.stdout)
+        # "declare"/SubjectHole's preference is an AnyOf across every
+        # ActionRole compiled for that lemma+hole; expanding
+        # import_verbnet.py's AUDITED_ROLE_SORTS/THEMATIC_ROLE_DEFAULTS
+        # (data/verbnet-action-roles.tsv regenerated accordingly) compiled
+        # a previously-uncompiled alternative for this same lemma+hole, so
+        # the disjunction correctly grew a branch -- this is the intended
+        # effect of that expansion, not a regression.
         self.assertIn(
-            "constraint=Prefers (AnyOf [HasSort Animate,HasSort Organization])"
-            "@declare",
+            "constraint=Prefers (AnyOf [HasSort Animate,HasSort Entity,"
+            "HasSort Organization])@declare",
             completed.stdout,
         )
-        self.assertIn("preferred=[Q1049470,Q2004561]", completed.stdout)
+        # Q175735 satisfies the widened preference (trivially, via the new
+        # HasSort Entity branch) at this Prefers stage, but Prefers never
+        # eliminates candidates -- it still gets obstructed one stage later
+        # by the hard RequiresSome Conducts constraint (asserted below via
+        # the unchanged two-candidate survivors= line at that later stage).
+        self.assertIn("preferred=[Q1049470,Q2004561,Q175735]", completed.stdout)
         self.assertIn("survivors=[Q1049470,Q2004561]", completed.stdout)
         self.assertIn(
             "constraint=RequiresSome Conducts (HasSort ScientificDiscipline)"
