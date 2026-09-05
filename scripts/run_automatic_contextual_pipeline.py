@@ -146,7 +146,29 @@ def main() -> None:
         command.extend(
             ["--framenet-snapshot", str(args.framenet_snapshot)]
         )
-    proposal = json.loads(subprocess.run(command, check=True, text=True, capture_output=True).stdout)
+    proposed = subprocess.run(command, text=True, capture_output=True)
+    if proposed.returncode != 0:
+        # Deliberately not check=True: an uncaught CalledProcessError's
+        # default traceback prints only "Command '...' returned non-zero
+        # exit status N" and silently discards the captured stdout/stderr
+        # -- which is exactly where propose_contextual_scenario.py's own
+        # short, sentence-free error message (raise SystemExit(str(error))
+        # for target-occurrence-not-found/unsupported-action-role/
+        # nested-modifier-unsupported) actually landed, undiagnosable from
+        # any caller that only sees this process's own combined output.
+        print(
+            json.dumps(
+                {
+                    "status": "propose-scenario-failed",
+                    "sentence": args.sentence,
+                    "detail": (proposed.stdout + proposed.stderr).strip(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        raise SystemExit(1)
+    proposal = json.loads(proposed.stdout)
     if proposal["status"] != "ready":
         print(json.dumps(proposal, ensure_ascii=False, indent=2, sort_keys=True))
         raise SystemExit(2)
