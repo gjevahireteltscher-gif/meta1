@@ -11,7 +11,7 @@
     "numerator": 9
   },
   "eliminations_per_constraint": {
-    "Prefers (AnyOf [HasSort Animate,HasSort Organization])@announce": 0,
+    "Prefers (AnyOf [HasSort Animate,HasSort Entity,HasSort Organization])@announce": 0,
     "Requires (AnyOf [HasSort Government,HasSort PoliticalOrganization])@sign political agreement": 1,
     "Requires (HasSort Agent)@sign": 0,
     "Requires (HasSort Agent)@sign agreement": 0,
@@ -82,6 +82,6 @@
   },
   "preference_match_rate": {
     "denominator": 3,
-    "numerator": 2
+    "numerator": 3
   }
 }
