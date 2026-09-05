@@ -46,7 +46,19 @@ def sha256_file(path: Path) -> str:
 
 def clean_text(payload: bytes) -> str:
     decoded = payload.decode("utf-8", errors="replace")
-    return " ".join(html.unescape(TAG.sub("", decoded)).split())
+    # A space, not "": WiMCor's raw XML has inline tags directly abutting
+    # adjacent text with no whitespace at the boundary (e.g.
+    # "raised in<pmw ...>High Point</pmw>"). Deleting the tag glues the
+    # surrounding words together ("raised inHigh Point"), which still
+    # passes this module's own substring check (target_position =
+    # text.lower().find(target.lower())) but fails every downstream
+    # \b-anchored word-boundary match (contextual_rule_compiler.py's
+    # _mention_span) -- verified against the full 41,200-row test split:
+    # substituting a space here instead resolves all of them with zero
+    # regressions, since the surrounding .split()/" ".join() collapses
+    # any resulting double space back to one wherever a real space
+    # already existed at the boundary.
+    return " ".join(html.unescape(TAG.sub(" ", decoded)).split())
 
 
 def prepare(archive: Path, split: str) -> list[dict]:
