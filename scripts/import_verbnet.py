@@ -334,6 +334,31 @@ AUDITED_ROLE_SORTS = {
     "garment": "Wearable",
     "comestible": "Edible",
     "sound": "Audible",
+    # Direct correspondence to an existing sort, same confidence as the
+    # entries above.
+    "region": "Place",
+    "communication": "CommunicationContent",
+    "animal": "Animate",
+    # Weaker, deliberate calls (see data/SOURCES.md's VerbNet section):
+    # render_requirement rejects a whole AnyOf/AllOf expression if *any*
+    # leaf restriction is unmapped, so "concrete" alone blocked thousands
+    # of rows whose *other* restrictions (animate/organization/location,
+    # all already mapped above) were perfectly fine -- e.g. real WiMCor/
+    # ConMeC sentences that go unsupported-action-role today. "concrete" is
+    # VerbNet's broadest category (a physical, non-abstract entity); Entity
+    # is this project's own top sort, so HasSort Entity is close to vacuous
+    # as a filter on its own -- the actual selectivity for these roles
+    # comes from whatever object/composition constraints apply downstream
+    # (frame_argument_capabilities, composition_matrix), not from this
+    # requirement. Compiled-but-weak was chosen over staying uncompiled: an
+    # uncompiled role can never contribute to resolve_action at all, so it
+    # silently discards real coverage rather than admitting a broad one.
+    "concrete": "Entity",
+    # int_control is VerbNet's own "intentional control" marker (the
+    # argument acts deliberately), not an entity-type restriction at all --
+    # but a role restricted to int_control entities is, in practice, almost
+    # always a volitional agent in VerbNet's own frames.
+    "int_control": "Agent",
 }
 
 THEMATIC_ROLE_DEFAULTS = {
@@ -342,6 +367,31 @@ THEMATIC_ROLE_DEFAULTS = {
     "Speaker": "Agent",
     "Experiencer": "Human",
     "Recipient": "Human",
+    # Same weak-but-compiled reasoning as AUDITED_ROLE_SORTS["concrete"]
+    # above, applied to roles VerbNet gives *no* restriction at all: Entity
+    # (this project's own top sort) makes these compiled rather than
+    # silently dropped, with real selectivity coming from whatever
+    # downstream constraint actually applies to the argument.
+    "Theme": "Entity",
+    "Patient": "Entity",
+    "Result": "Entity",
+    "Stimulus": "Entity",
+    "Location": "Entity",
+    "Topic": "Entity",
+    "Instrument": "Entity",
+    "Attribute": "Entity",
+    "Product": "Entity",
+    "Source": "Entity",
+    "Extent": "Entity",
+    "Initial_State": "Entity",
+    "Eventuality": "Entity",
+    "Goal": "Entity",
+    "Causer": "Entity",
+    "Pivot": "Entity",
+    "Destination": "Entity",
+    "Value": "Entity",
+    "Material": "Entity",
+    "Co-Theme": "Entity",
 }
 
 

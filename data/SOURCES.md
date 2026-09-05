@@ -43,6 +43,61 @@ disjunction, and negative restrictions for an audited subset including:
 Unmapped restrictions remain `uncompiled` lossless rows. They cannot
 authorize a rewrite. Polysemous members retain separate class/sense action
 identities, and every generated row records its exact pinned provenance.
+
+### Action-role restriction-to-sort mapping expansion
+
+`AUDITED_ROLE_SORTS`/`THEMATIC_ROLE_DEFAULTS` in `scripts/import_verbnet.py`
+(used only by the `verbnet-action-roles.tsv` generation path, distinct from
+the older `RESTRICTION_SORTS`/`FEATURE_SORTS`/`LEMMA_SORTS`/`FRAMENET_SORTS`/
+`CLASS_SORTS` tables that feed `verbnet-predicates.tsv`) started with 8 and 5
+entries respectively. `render_requirement` rejects an entire `AnyOf`/`AllOf`
+selectional-restriction expression if even one leaf restriction is
+unmapped, so a handful of missing entries silently discarded far more
+coverage than their own frequency suggests: `animate`/`location`/
+`organization` were already mapped but kept showing up `uncompiled` because
+they co-occurred with an unmapped sibling restriction in the same compound
+expression.
+
+Measured directly against the real, pinned WiMCor/ConMeC samples (same
+150-row `--sample-size 150 --seed 0` draw the CI evaluation workflow uses)
+with `scripts/evaluation/estimate_action_vocabulary_coverage.py`: expanding
+these two tables took the fraction of real governing-verb tokens missing
+from the compiled vocabulary from 40.3%/32.1% (WiMCor/ConMeC) to 6.4%/6.0%,
+and compiled `verbnet-action-roles.tsv` rows from 17,006 to 39,347 (3,288 to
+4,499 distinct compiled lemmas, out of 4,580 total).
+
+Added, with the reasoning that made each call:
+
+- `region`, `communication`, `animal` -> `Place`/`CommunicationContent`/
+  `Animate`: direct correspondence, same confidence as the original 8
+  entries.
+- `concrete` -> `Entity`: VerbNet's broadest category (a physical,
+  non-abstract entity); `Entity` is this project's own top sort, so
+  `HasSort Entity` is close to vacuous as a filter on its own. Deliberately
+  compiled-but-weak rather than left uncompiled: an uncompiled role can
+  never contribute to `resolve_action` at all, silently discarding real
+  coverage, while a compiled-but-broad one still lets whatever *other*
+  constraint applies downstream (object/composition requirements, bridge
+  relations) do the actual discriminating.
+- `int_control` -> `Agent`: this is VerbNet's own "intentional control"
+  marker (the argument acts deliberately), not an entity-type restriction
+  at all -- but a role restricted to `int_control` entities is, in
+  practice, almost always a volitional agent in VerbNet's own frames.
+- `THEMATIC_ROLE_DEFAULTS` extended to every VerbNet thematic role name
+  that showed up with *no* restriction at all in the uncompiled rows
+  (`Theme`, `Patient`, `Result`, `Stimulus`, `Location`, `Topic`,
+  `Instrument`, `Attribute`, `Product`, `Source`, `Extent`,
+  `Initial_State`, `Eventuality`, `Goal`, `Causer`, `Pivot`, `Destination`,
+  `Value`, `Material`, `Co-Theme`) -> `Entity`, same weak-but-compiled
+  reasoning as `concrete` above.
+
+Deliberately not attempted in this pass: restriction types with no good
+existing-sort correspondence (`machine`, `solid`, `body_part`, `vehicle`,
+`currency`, `elongated`, `substance`, `force`, `plural`) stay `uncompiled`
+rather than forcing a poor-fit mapping or adding new `Sort` constants (which
+would touch `engine/src/Metonymy/Types.hs` and the mirrored Agda
+definition -- a materially bigger, CI-round-trip-requiring change, not a
+data-only one).
 Native `fn_mapping` values are metadata from VerbNet; no FrameNet frame
 element semantics are claimed without a separately licensed FrameNet
 archive.
