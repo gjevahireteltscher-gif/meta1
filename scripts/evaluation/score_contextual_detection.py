@@ -103,6 +103,38 @@ KNOWN_FAILURE_TOKENS = (
     "unknown symbolic value:",
 )
 
+# Generic GHC/Prelude runtime-crash signatures -- a different *kind* of
+# token from KNOWN_FAILURE_TOKENS above: those are precise, this-codebase-
+# specific named failure conditions (an explicit `Left "reason"` or `fail
+# "reason"` this project's own code chose to raise); these are the
+# standard library's own well-known partial-function/pattern-match/
+# arithmetic crash message prefixes, which any GHC program can hit
+# whenever such a function is applied outside its domain (e.g. `head` on
+# an empty list) -- something this codebase does not raise on purpose.
+# Motivation: two rounds of adding KNOWN_FAILURE_TOKENS entries (both
+# guessed from reading Metonymy.Contextual/ContextualChecked/ContextSpec's
+# own explicit Left/fail sites) changed nothing -- a real
+# contextual-tower-evaluation.yml run produced byte-identical
+# "unrecognized" counts before and after both additions, meaning neither
+# round's tokens matched anything. `Checker.hs` (compiled from Agda,
+# Metonymy.ContextualChecked's `verifyContextLayerWithAgda` calls into it)
+# produced real GHC compiler warnings during this project's own build
+# about exactly this class of partial function ("throws an error on empty
+# lists... consider... Data.List.NonEmpty") -- and the live-API-built
+# snapshot's own sparser entities (a same-named-place candidate with zero
+# claims at all, confirmed by locally reproducing the real sample) are
+# exactly the kind of edge case a curated, hand-picked snapshot would
+# never have exercised. Deliberately broad rather than an exact function
+# name, since GHC's own message varies by which partial function actually
+# ran out of domain and this project cannot predict that in advance; still
+# safe to match on since these are fixed standard-library message
+# prefixes, never sentence text.
+GENERIC_RUNTIME_CRASH_TOKENS = (
+    "Prelude.",
+    "Non-exhaustive patterns",
+    "divide by zero",
+)
+
 
 def exit2_candidate_bucket(failure_text: str) -> str:
     """Split exit 2 (source-qid-unresolved) into zero vs ambiguous candidates.
@@ -144,24 +176,31 @@ def literal_reason(inference_row: dict) -> str:
     source-disambiguation-ambiguous -- two or more source candidates each
     independently ran the tower's full per-layer narrowing to a non-empty
     final fiber, and the pipeline refuses to guess between them). Exit 1
-    covers two different origins that both end up looking identical at
+    covers three different origins that all end up looking identical at
     this level -- everything resolve_action/propose_contextual_scenario.py
     itself raises as a ValueError (target-occurrence-not-found/
     unsupported-action-role/nested-modifier-unsupported), reaching
     run_automatic_contextual_pipeline.py as an uncaught CalledProcessError
-    from its own `subprocess.run(..., check=True)` call; *and* the case
-    where every one of the disambiguation loop's candidates failed its own
+    from its own `subprocess.run(..., check=True)` call; the case where
+    every one of the disambiguation loop's candidates failed its own
     engine invocation outright (not just an empty fiber), which the
-    pipeline surfaces by propagating that candidate's own exit code --
-    always 1, since the engine's `die` (System.Exit.die) always does --
-    with the engine's own stderr message, never JSON-wrapped. The exit
-    code alone can't tell any of this apart, so for exit 1 this also
+    pipeline surfaces by propagating that candidate's own exit code; and,
+    within that same case, GHC's own exit code for an uncaught runtime
+    exception (a partial function applied outside its domain, a
+    non-exhaustive pattern match, ...) -- always 1 as well, same as
+    System.Exit.die and a `fail` reaching GHC's default top-level handler,
+    so the exit code alone genuinely cannot tell any of these three apart
+    (see GENERIC_RUNTIME_CRASH_TOKENS's own comment for why that
+    possibility gets a second, broader pass). So for exit 1 this also
     searches the row's own "failure" text (never exposed itself) for one of
-    KNOWN_FAILURE_TOKENS and reports only the matched token name, or
-    "failed:exit1:unrecognized" if none match. Exit 2 similarly gets a
-    sub-tag from exit2_candidate_bucket -- see its own docstring. Carries
-    no sentence text either way, so this is safe to upload as a CI
-    artifact even though the inference row it's drawn from is not.
+    KNOWN_FAILURE_TOKENS, then -- if none of those precise, this-codebase
+    tokens match -- one of GENERIC_RUNTIME_CRASH_TOKENS (see its own
+    comment for why a separate, broader pass exists), and reports only the
+    matched token name, or "failed:exit1:unrecognized" if neither matches.
+    Exit 2 similarly gets a sub-tag from exit2_candidate_bucket -- see its
+    own docstring. Carries no sentence text either way, so this is safe to
+    upload as a CI artifact even though the inference row it's drawn from
+    is not.
     """
     if inference_row.get("status") == "ok":
         return "ok:empty-fiber"
@@ -169,6 +208,9 @@ def literal_reason(inference_row: dict) -> str:
     if exit_code == 1:
         failure_text = inference_row.get("failure", "")
         for token in KNOWN_FAILURE_TOKENS:
+            if token in failure_text:
+                return f"failed:exit1:{token}"
+        for token in GENERIC_RUNTIME_CRASH_TOKENS:
             if token in failure_text:
                 return f"failed:exit1:{token}"
         return "failed:exit1:unrecognized"

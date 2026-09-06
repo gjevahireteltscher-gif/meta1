@@ -132,6 +132,35 @@ class LiteralReasonTests(unittest.TestCase):
             literal_reason(row), "failed:exit1:unknown contextual scenario:"
         )
 
+    def test_exit1_recognizes_a_generic_prelude_partial_function_crash(
+        self,
+    ) -> None:
+        # A separate, broader pass from KNOWN_FAILURE_TOKENS -- see
+        # GENERIC_RUNTIME_CRASH_TOKENS's own comment. GHC's own crash
+        # message for a partial function applied outside its domain (e.g.
+        # `head` on an empty list), not something this codebase raises on
+        # purpose the way the other exit-1 tokens are.
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "metonymy: Prelude.head: empty list",
+        }
+        self.assertEqual(literal_reason(row), "failed:exit1:Prelude.")
+
+    def test_known_failure_tokens_are_checked_before_generic_crash_tokens(
+        self,
+    ) -> None:
+        # A precise, this-codebase token must win even if the surrounding
+        # text also happens to contain a generic crash signature.
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "unsupported-action-role near Prelude.head",
+        }
+        self.assertEqual(literal_reason(row), "failed:exit1:unsupported-action-role")
+
     def test_exit1_with_no_known_token_is_unrecognized_not_a_crash(self) -> None:
         row = {
             "id": "a",
