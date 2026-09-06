@@ -71,6 +71,36 @@ class LiteralReasonTests(unittest.TestCase):
         }
         self.assertEqual(literal_reason(row), "failed:exit1:nested-modifier-unsupported")
 
+    def test_exit1_recognizes_an_engine_die_message_from_the_disambiguation_loop(
+        self,
+    ) -> None:
+        # When every candidate in run_automatic_contextual_pipeline.py's
+        # multi-candidate loop fails its own engine invocation outright,
+        # the pipeline propagates that candidate's raw exit code (always 1
+        # -- System.Exit.die) with the engine's own stderr message, never
+        # JSON-wrapped: "contextual fiber failed: <reason>" from
+        # Metonymy.Contextual/Metonymy.ContextualChecked.
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "contextual fiber failed: snapshot-hash-mismatch",
+        }
+        self.assertEqual(literal_reason(row), "failed:exit1:snapshot-hash-mismatch")
+
+    def test_exit1_recognizes_an_agda_cross_check_disagreement_ignoring_the_stage_number(
+        self,
+    ) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "contextual fiber failed: agda-rejected-survivor-at-stage-2",
+        }
+        self.assertEqual(
+            literal_reason(row), "failed:exit1:agda-rejected-survivor-at-stage-"
+        )
+
     def test_exit1_with_no_known_token_is_unrecognized_not_a_crash(self) -> None:
         row = {
             "id": "a",

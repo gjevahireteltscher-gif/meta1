@@ -43,14 +43,30 @@ def predict(inference_row: dict) -> str:
     return "literal"
 
 
-# Every short, fixed error token resolve_action/propose_contextual_scenario.py
-# can raise (contextual_rule_compiler.py, propose_contextual_scenario.py).
-# These strings never contain sentence text -- they are the *names* of
-# failure conditions -- so matching one out of a subprocess's combined
-# stdout+stderr traceback and reporting only the matched token, never the
-# surrounding text, stays safe to upload even though the untruncated
-# traceback (which does echo sentence text -- e.g. propose_contextual_scenario.py
-# prints the offending gf_sentence/gf_tree on some failures) is not.
+# Every short, fixed error token that can show up in an exit-1 row's
+# "failure" text. Two distinct sources feed this same exit code:
+# resolve_action/propose_contextual_scenario.py's own ValueErrors
+# (contextual_rule_compiler.py, propose_contextual_scenario.py), and --
+# since run_automatic_contextual_pipeline.py's multi-candidate
+# disambiguation loop (see its own module docstring) falls back to
+# propagating a representative candidate's own exit code when *no*
+# candidate's engine run succeeds -- the compiled engine's own `die`
+# messages (System.Exit.die always exits 1), built as "contextual fiber
+# failed: <reason>" from Metonymy.Contextual's validateContext/
+# contextualFiber (empty-snapshot-hash/empty-action/tree-without-
+# lexical-leaves/empty-constraint-provenance/unknown-constraint-
+# provenance/invalid-lexical-span/snapshot-hash-mismatch/invalid-max-depth)
+# and Metonymy.ContextualChecked's own per-stage Agda cross-check
+# (agda-rejected-survivor-at-stage-/agda-accepted-obstruction-at-stage-/
+# agda-rejected-preference-at-stage-/agda-accepted-preference-miss-at-
+# stage-, each followed by a stage number this deliberately does not
+# capture, keeping the tag itself fixed-shape). All of these are the
+# *names* of failure conditions, never sentence text, so matching one out
+# of a subprocess's combined stdout+stderr and reporting only the matched
+# token, never the surrounding text, stays safe to upload even though the
+# untruncated text (which does echo sentence text -- e.g.
+# propose_contextual_scenario.py prints the offending gf_sentence/gf_tree
+# on some failures) is not.
 KNOWN_FAILURE_TOKENS = (
     "target-occurrence-not-found",
     "unsupported-action-role",
@@ -58,6 +74,18 @@ KNOWN_FAILURE_TOKENS = (
     "source-qid-unresolved",
     "contract-target-qid-unresolved",
     "unsupported-linker-cache-schema",
+    "empty-snapshot-hash",
+    "empty-action",
+    "tree-without-lexical-leaves",
+    "empty-constraint-provenance",
+    "unknown-constraint-provenance",
+    "invalid-lexical-span",
+    "snapshot-hash-mismatch",
+    "invalid-max-depth",
+    "agda-rejected-survivor-at-stage-",
+    "agda-accepted-obstruction-at-stage-",
+    "agda-rejected-preference-at-stage-",
+    "agda-accepted-preference-miss-at-stage-",
 )
 
 
@@ -101,13 +129,19 @@ def literal_reason(inference_row: dict) -> str:
     source-disambiguation-ambiguous -- two or more source candidates each
     independently ran the tower's full per-layer narrowing to a non-empty
     final fiber, and the pipeline refuses to guess between them). Exit 1
-    covers everything resolve_action/propose_contextual_scenario.py itself
-    raises as a ValueError (target-occurrence-not-found/unsupported-
-    action-role/nested-modifier-unsupported), which reaches
+    covers two different origins that both end up looking identical at
+    this level -- everything resolve_action/propose_contextual_scenario.py
+    itself raises as a ValueError (target-occurrence-not-found/
+    unsupported-action-role/nested-modifier-unsupported), reaching
     run_automatic_contextual_pipeline.py as an uncaught CalledProcessError
-    from its own `subprocess.run(..., check=True)` call -- the exit code
-    alone can't tell those apart, so for exit 1 this also searches the
-    row's own "failure" text (never exposed itself) for one of
+    from its own `subprocess.run(..., check=True)` call; *and* the case
+    where every one of the disambiguation loop's candidates failed its own
+    engine invocation outright (not just an empty fiber), which the
+    pipeline surfaces by propagating that candidate's own exit code --
+    always 1, since the engine's `die` (System.Exit.die) always does --
+    with the engine's own stderr message, never JSON-wrapped. The exit
+    code alone can't tell any of this apart, so for exit 1 this also
+    searches the row's own "failure" text (never exposed itself) for one of
     KNOWN_FAILURE_TOKENS and reports only the matched token name, or
     "failed:exit1:unrecognized" if none match. Exit 2 similarly gets a
     sub-tag from exit2_candidate_bucket -- see its own docstring. Carries
