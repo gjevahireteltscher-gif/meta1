@@ -57,7 +57,6 @@ def main() -> None:
         help="frozen exact-alias cache produced by build_wikidata_linker_cache.py",
     )
     parser.add_argument("--target-surface")
-    parser.add_argument("--name")
     parser.add_argument(
         "--rules",
         type=Path,
@@ -260,9 +259,21 @@ def main() -> None:
                 )
         proposal["lexical_evidence"] = lexical_evidence
         proposal["provenance"]["wordnet"] = wordnet_rules["schema_version"]
-    proposal["status"] = "ready" if len(candidates) == 1 else "source-qid-unresolved"
-    if proposal["status"] == "ready":
-        proposal["scenario"] = args.name or f"{candidates[0].lower()}-{lemma}"
+    # Historically this required exactly one candidate: an ambiguous source
+    # surface (more than one Wikidata item sharing the same exact label --
+    # extremely common for place names, see data/SOURCES.md's entity-linking
+    # section) aborted the whole pipeline here, before the contextual tower
+    # ever ran. That meant the tower's own per-layer narrowing -- exactly
+    # the mechanism that should be disambiguating "does this Liverpool have
+    # a university connected to it via the roles this sentence needs" --
+    # never got a chance to run on any of the ambiguous candidates. Now this
+    # proposer only gates on the source resolving to *some* candidate at
+    # all; run_automatic_contextual_pipeline.py runs the (candidate-
+    # independent) action/GF-parse/constraint-compilation stages once and
+    # then the tower once per candidate QID, keeping only the ones whose
+    # own contextual fiber survives non-empty -- see its own module
+    # docstring for the exact three-way outcome.
+    proposal["status"] = "ready" if candidates else "source-qid-unresolved"
     print(json.dumps(proposal, ensure_ascii=False, indent=2, sort_keys=True))
 
 

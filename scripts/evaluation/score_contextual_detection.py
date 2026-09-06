@@ -95,21 +95,24 @@ def literal_reason(inference_row: dict) -> str:
     """A text-free tag for why a row predicted "literal" -- status plus
     exit code (run_automatic_contextual_pipeline.py uses a distinct exit
     code per failure kind: 3 gf-parse-failed, 4 semantic-composition-
-    failed, 5 contract-target-qid-unresolved, 2 source-qid-unresolved -- a
-    resolved target_surface has no unique QID in the snapshot's own
-    aliases.jsonl). Exit 1 covers everything resolve_action/
-    propose_contextual_scenario.py itself raises as a ValueError
-    (target-occurrence-not-found/unsupported-action-role/nested-modifier-
-    unsupported), which reaches run_automatic_contextual_pipeline.py as an
-    uncaught CalledProcessError from its own `subprocess.run(...,
-    check=True)` call -- the exit code alone can't tell those apart, so
-    for exit 1 this also searches the row's own "failure" text (never
-    exposed itself) for one of KNOWN_FAILURE_TOKENS and reports only the
-    matched token name, or "failed:exit1:unrecognized" if none match.
-    Exit 2 similarly gets a sub-tag from exit2_candidate_bucket -- see its
-    own docstring. Carries no sentence text either way, so this is safe
-    to upload as a CI artifact even though the inference row it's drawn
-    from is not.
+    failed, 5 contract-target-qid-unresolved, 2 source-qid-unresolved -- no
+    candidate QID at all for the source surface in the snapshot's own
+    aliases.jsonl, or (--contract-target only) not exactly one -- 6
+    source-disambiguation-ambiguous -- two or more source candidates each
+    independently ran the tower's full per-layer narrowing to a non-empty
+    final fiber, and the pipeline refuses to guess between them). Exit 1
+    covers everything resolve_action/propose_contextual_scenario.py itself
+    raises as a ValueError (target-occurrence-not-found/unsupported-
+    action-role/nested-modifier-unsupported), which reaches
+    run_automatic_contextual_pipeline.py as an uncaught CalledProcessError
+    from its own `subprocess.run(..., check=True)` call -- the exit code
+    alone can't tell those apart, so for exit 1 this also searches the
+    row's own "failure" text (never exposed itself) for one of
+    KNOWN_FAILURE_TOKENS and reports only the matched token name, or
+    "failed:exit1:unrecognized" if none match. Exit 2 similarly gets a
+    sub-tag from exit2_candidate_bucket -- see its own docstring. Carries
+    no sentence text either way, so this is safe to upload as a CI
+    artifact even though the inference row it's drawn from is not.
     """
     if inference_row.get("status") == "ok":
         return "ok:empty-fiber"

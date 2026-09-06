@@ -353,3 +353,33 @@ in the score report shows exactly which. Scaling this up further is
 Items 2-4's job (`scripts/build_wikidata_api_index.py` run at real
 corpus scale, more `composition_matrix`/`context_templates` coverage,
 more GF grammar constructions), not this adapter's.
+
+### Source-mention disambiguation via the tower itself
+
+An exact-alias match against a corpus-scale snapshot (see
+`data/SOURCES.md`'s "Wikidata live-API runtime index" section) very often
+yields more than one QID for one surface -- ordinary place names are the
+worst offender: a live-API snapshot built from a 300-sentence WiMCor/
+ConMeC sample resolved `"Liverpool"` to 12 distinct QIDs, `"Boston"` to
+10, `"Santiago"` to 17, almost all of them identically-named minor US
+census-designated places/unincorporated communities rather than the
+entity the sentence actually means. `propose_contextual_scenario.py` does
+not try to pick one: it hands the full candidate list to
+`run_automatic_contextual_pipeline.py`, which runs the (candidate-
+independent) action/GF-parse/constraint-compilation stages exactly once
+and then the tower's own existing per-layer narrowing -- unmodified,
+still `contextLayerCheck`/`runtimeCheck`-verified -- once per candidate
+QID. A candidate is confirmed only if its own run ends with a non-empty
+final fiber, i.e. something reachable from *that* QID actually satisfies
+every constraint the sentence's words imposed; a same-named township with
+no matching institution nearby simply dead-ends. Exactly one confirmed
+candidate is the answer; zero is a legitimate literal prediction (no
+candidate identity supports a metonymic reading); two or more is reported
+as `source-disambiguation-ambiguous` (`SystemExit(6)`) rather than guessed
+-- the same exact-match-or-abstain policy the entity linker itself already
+follows. This only touches the untrusted proposer side of the trust
+boundary (`docs/architecture.md`: "Hard search results are untrusted
+until `runtimeCheck` succeeds"); no formal theorem changed. `--contract-target`
+keeps the older, stricter single-candidate requirement, since a
+contraction can be *correctly* rejected by the formal checker and that
+must not be confused with a disambiguation failure.
