@@ -25,6 +25,7 @@ paper wants before citing raw precision/recall/F1 from it.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -219,11 +220,35 @@ def literal_reason(inference_row: dict) -> str:
     return f"failed:exit{exit_code}"
 
 
+def fingerprint_failure_text(failure_text: str) -> dict:
+    """A safe, content-free fingerprint of a failure text: a short hash
+    prefix and a character length, never the text itself.
+
+    Exists specifically for "failed:exit1:unrecognized" rows -- two
+    consecutive contextual-tower-evaluation.yml runs added 18 precise
+    KNOWN_FAILURE_TOKENS entries and 3 broad GENERIC_RUNTIME_CRASH_TOKENS
+    ones with zero matches either time, burning a CI round trip each time
+    on a guess. This answers a cheaper, more useful question first --
+    "is this one repeated message or many different ones" -- without
+    needing another guess: a single dominant sha256_prefix repeated
+    across most/all "unrecognized" rows means one root cause; many
+    distinct ones means several unrelated things are going wrong at once.
+    12 hex characters of SHA-256 (48 bits) makes an accidental collision
+    among a few hundred rows astronomically unlikely, so equal prefixes
+    reliably mean equal underlying text without ever transmitting it.
+    """
+    return {
+        "sha256_prefix": hashlib.sha256(failure_text.encode("utf-8")).hexdigest()[:12],
+        "length": len(failure_text),
+    }
+
+
 def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
     inference_by_id = {row["id"]: row for row in inference_rows}
     true_positive = false_positive = true_negative = false_negative = 0
     missing = 0
     literal_prediction_reasons: Counter[str] = Counter()
+    unrecognized_fingerprints: Counter[tuple[str, int]] = Counter()
     for gold in gold_rows:
         inference_row = inference_by_id.get(gold["id"])
         if inference_row is None:
@@ -240,7 +265,13 @@ def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
         else:
             false_negative += 1
         if predicted == "literal":
-            literal_prediction_reasons[literal_reason(inference_row)] += 1
+            reason = literal_reason(inference_row)
+            literal_prediction_reasons[reason] += 1
+            if reason == "failed:exit1:unrecognized":
+                fingerprint = fingerprint_failure_text(inference_row.get("failure", ""))
+                unrecognized_fingerprints[
+                    (fingerprint["sha256_prefix"], fingerprint["length"])
+                ] += 1
 
     precision = (
         true_positive / (true_positive + false_positive)
@@ -270,6 +301,13 @@ def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
         "recall": recall,
         "f1": f1,
         "literal_prediction_reasons": dict(sorted(literal_prediction_reasons.items())),
+        "unrecognized_fingerprints": [
+            {"sha256_prefix": prefix, "length": length, "count": count}
+            for (prefix, length), count in sorted(
+                unrecognized_fingerprints.items(),
+                key=lambda item: (-item[1], item[0]),
+            )
+        ],
     }
 
 

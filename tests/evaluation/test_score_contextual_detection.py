@@ -9,7 +9,12 @@ sys.path.insert(0, str(ROOT / "scripts" / "evaluation"))
 
 import json  # noqa: E402
 
-from score_contextual_detection import literal_reason, predict, score  # noqa: E402
+from score_contextual_detection import (  # noqa: E402
+    fingerprint_failure_text,
+    literal_reason,
+    predict,
+    score,
+)
 
 
 def ok_row(id_: str, fiber: list[str]) -> dict:
@@ -258,6 +263,26 @@ class LiteralReasonTests(unittest.TestCase):
         self.assertNotIn("Q5678", reason)
 
 
+class FingerprintFailureTextTests(unittest.TestCase):
+    def test_same_text_gives_same_fingerprint(self) -> None:
+        a = fingerprint_failure_text("metonymy: Prelude.head: empty list")
+        b = fingerprint_failure_text("metonymy: Prelude.head: empty list")
+        self.assertEqual(a, b)
+
+    def test_different_text_gives_different_fingerprint(self) -> None:
+        a = fingerprint_failure_text("metonymy: Prelude.head: empty list")
+        b = fingerprint_failure_text("metonymy: something else entirely")
+        self.assertNotEqual(a["sha256_prefix"], b["sha256_prefix"])
+
+    def test_fingerprint_never_contains_the_original_text(self) -> None:
+        text = "Waterloo confabulates a treaty near the Kremlin"
+        fingerprint = fingerprint_failure_text(text)
+        self.assertNotIn("Waterloo", str(fingerprint))
+        self.assertNotIn("Kremlin", str(fingerprint))
+        self.assertNotIn(text, str(fingerprint))
+        self.assertEqual(fingerprint["length"], len(text))
+
+
 class ScoreTests(unittest.TestCase):
     def test_true_positive_true_negative_false_positive_false_negative(self) -> None:
         inference = [
@@ -338,6 +363,47 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(
             report["literal_prediction_reasons"],
             {"failed:exit3": 2, "failed:exit4": 1, "ok:empty-fiber": 1},
+        )
+
+    def test_unrecognized_rows_get_no_fingerprint_bucket_when_none_are_unrecognized(
+        self,
+    ) -> None:
+        inference = [failed_row("a", exit_code=3)]
+        gold = [{"id": "a", "gold_label": "literal", "gold_bridge_family": None}]
+        report = score(inference, gold)
+        self.assertEqual(report["unrecognized_fingerprints"], [])
+
+    def test_repeated_unrecognized_failure_text_groups_into_one_fingerprint(
+        self,
+    ) -> None:
+        def unrecognized_row(id_: str, failure_text: str) -> dict:
+            return {
+                "id": id_,
+                "status": "failed",
+                "exit_code": 1,
+                "failure": failure_text,
+                "fiber": [],
+                "stages": [],
+            }
+
+        inference = [
+            unrecognized_row("a", "metonymy: something odd happened"),
+            unrecognized_row("b", "metonymy: something odd happened"),
+            unrecognized_row("c", "metonymy: a totally different crash"),
+        ]
+        gold = [
+            {"id": "a", "gold_label": "literal", "gold_bridge_family": None},
+            {"id": "b", "gold_label": "literal", "gold_bridge_family": None},
+            {"id": "c", "gold_label": "literal", "gold_bridge_family": None},
+        ]
+        report = score(inference, gold)
+        counts = sorted(entry["count"] for entry in report["unrecognized_fingerprints"])
+        self.assertEqual(counts, [1, 2])
+        # ranked highest-count first
+        self.assertEqual(report["unrecognized_fingerprints"][0]["count"], 2)
+        self.assertEqual(
+            len({entry["sha256_prefix"] for entry in report["unrecognized_fingerprints"]}),
+            2,
         )
 
 
