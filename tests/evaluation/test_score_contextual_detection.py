@@ -101,6 +101,37 @@ class LiteralReasonTests(unittest.TestCase):
             literal_reason(row), "failed:exit1:agda-rejected-survivor-at-stage-"
         )
 
+    def test_exit1_recognizes_a_scenario_tsv_parse_failure(self) -> None:
+        # loadContextScenarios (Metonymy.ContextSpec) runs unconditionally
+        # at the very start of every engine invocation, before any command
+        # dispatch -- its own `fail` (not `die`) is a genuinely different
+        # message shape (GHC's default top-level handler, not
+        # System.Exit.die's "contextual fiber failed: " convention) but
+        # still exits 1.
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": (
+                "metonymy: user error (/tmp/x/scenarios.tsv:2: "
+                "malformed contextual constraint: Verb|announce)"
+            ),
+        }
+        self.assertEqual(
+            literal_reason(row), "failed:exit1:malformed contextual constraint:"
+        )
+
+    def test_exit1_recognizes_an_unknown_scenario_lookup_failure(self) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 1,
+            "failure": "metonymy: unknown contextual scenario: q24826-announce",
+        }
+        self.assertEqual(
+            literal_reason(row), "failed:exit1:unknown contextual scenario:"
+        )
+
     def test_exit1_with_no_known_token_is_unrecognized_not_a_crash(self) -> None:
         row = {
             "id": "a",

@@ -44,29 +44,38 @@ def predict(inference_row: dict) -> str:
 
 
 # Every short, fixed error token that can show up in an exit-1 row's
-# "failure" text. Two distinct sources feed this same exit code:
+# "failure" text. Three distinct sources feed this same exit code:
 # resolve_action/propose_contextual_scenario.py's own ValueErrors
-# (contextual_rule_compiler.py, propose_contextual_scenario.py), and --
-# since run_automatic_contextual_pipeline.py's multi-candidate
-# disambiguation loop (see its own module docstring) falls back to
-# propagating a representative candidate's own exit code when *no*
-# candidate's engine run succeeds -- the compiled engine's own `die`
-# messages (System.Exit.die always exits 1), built as "contextual fiber
-# failed: <reason>" from Metonymy.Contextual's validateContext/
-# contextualFiber (empty-snapshot-hash/empty-action/tree-without-
-# lexical-leaves/empty-constraint-provenance/unknown-constraint-
-# provenance/invalid-lexical-span/snapshot-hash-mismatch/invalid-max-depth)
-# and Metonymy.ContextualChecked's own per-stage Agda cross-check
-# (agda-rejected-survivor-at-stage-/agda-accepted-obstruction-at-stage-/
-# agda-rejected-preference-at-stage-/agda-accepted-preference-miss-at-
-# stage-, each followed by a stage number this deliberately does not
-# capture, keeping the tag itself fixed-shape). All of these are the
-# *names* of failure conditions, never sentence text, so matching one out
-# of a subprocess's combined stdout+stderr and reporting only the matched
-# token, never the surrounding text, stays safe to upload even though the
-# untruncated text (which does echo sentence text -- e.g.
+# (contextual_rule_compiler.py, propose_contextual_scenario.py); the
+# compiled engine's own `die` messages (System.Exit.die always exits 1),
+# built as "contextual fiber failed: <reason>" from Metonymy.Contextual's
+# validateContext/contextualFiber (empty-snapshot-hash/empty-action/
+# tree-without-lexical-leaves/empty-constraint-provenance/unknown-
+# constraint-provenance/invalid-lexical-span/snapshot-hash-mismatch/
+# invalid-max-depth) and Metonymy.ContextualChecked's own per-stage Agda
+# cross-check (agda-rejected-survivor-at-stage-/agda-accepted-
+# obstruction-at-stage-/agda-rejected-preference-at-stage-/agda-accepted-
+# preference-miss-at-stage-, each followed by a stage number this
+# deliberately does not capture); and -- an easy one to miss, since it
+# fires before any command dispatch, let alone the fiber computation
+# above -- Metonymy.ContextSpec.loadContextScenarios's own scenario-TSV
+# parsing, which runs unconditionally at the very start of every engine
+# invocation and raises via plain `fail`, not `die`, so GHC's default
+# top-level handler (not System.Exit.die's convention) formats the
+# message, still exiting 1 either way (unknown contextual scenario:/
+# empty contextual scenario file:/unexpected contextual scenario header:/
+# expected seven tab-separated fields/malformed contextual constraint:/
+# unknown symbolic value:). run_automatic_contextual_pipeline.py's
+# multi-candidate disambiguation loop (see its own module docstring)
+# reaches all of this by propagating a representative candidate's own
+# exit code when *no* candidate's engine run succeeds. All of these are
+# the *names* of failure conditions, never sentence text, so matching one
+# out of a subprocess's combined stdout+stderr and reporting only the
+# matched token, never the surrounding text, stays safe to upload even
+# though the untruncated text (which does echo sentence text -- e.g.
 # propose_contextual_scenario.py prints the offending gf_sentence/gf_tree
-# on some failures) is not.
+# on some failures, and a malformed-constraint message echoes the
+# offending encoded constraint, which can include a source word) is not.
 KNOWN_FAILURE_TOKENS = (
     "target-occurrence-not-found",
     "unsupported-action-role",
@@ -86,6 +95,12 @@ KNOWN_FAILURE_TOKENS = (
     "agda-accepted-obstruction-at-stage-",
     "agda-rejected-preference-at-stage-",
     "agda-accepted-preference-miss-at-stage-",
+    "unknown contextual scenario:",
+    "empty contextual scenario file:",
+    "unexpected contextual scenario header:",
+    "expected seven tab-separated fields",
+    "malformed contextual constraint:",
+    "unknown symbolic value:",
 )
 
 
