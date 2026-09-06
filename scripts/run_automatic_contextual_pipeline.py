@@ -262,7 +262,30 @@ def main() -> None:
         raise SystemExit(3)
     trees = [line for line in parsed.stdout.splitlines() if line.strip()]
     if not trees or trees[0].startswith("The parser failed"):
-        raise SystemExit("GF returned no lexicalized trees")
+        # A bare `raise SystemExit("some string")` prints that string to
+        # stderr and exits 1 -- the same exit code as every ValueError
+        # resolve_action/propose_contextual_scenario.py can raise, but
+        # without the JSON-wrapped "status"/exit-code convention every
+        # sibling failure in this function follows. That made it
+        # invisible to score_contextual_detection.py's exit-1 token
+        # search: two full contextual-tower-evaluation.yml rounds of
+        # adding tokens for other suspected causes found nothing, because
+        # this fixed 32-character string was never among them until a
+        # safe, content-free fingerprint (a SHA-256 prefix, no sentence
+        # text) of the real "unrecognized" failures matched a fingerprint
+        # of exactly this string, taken locally, character for character.
+        # Fixed by giving it its own exit code, like every sibling here.
+        print(
+            json.dumps(
+                {
+                    "status": "gf-parse-empty",
+                    "gf_sentence": proposal["gf_sentence"],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        raise SystemExit(7)
     language_rules = json.loads(Path(args.rules).read_text(encoding="utf-8"))
     wordnet_rules_path = Path("data/wordnet-context-rules.json")
     wordnet_rules = json.loads(wordnet_rules_path.read_text(encoding="utf-8"))

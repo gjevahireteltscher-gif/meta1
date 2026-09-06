@@ -102,6 +102,11 @@ KNOWN_FAILURE_TOKENS = (
     "expected seven tab-separated fields",
     "malformed contextual constraint:",
     "unknown symbolic value:",
+    # Confirmed (not guessed) the actual, sole cause of every real
+    # "unrecognized" row seen so far -- see literal_reason's own
+    # docstring. Now fixed at the source to its own exit code (7); kept
+    # here only for any already-produced data that predates that fix.
+    "GF returned no lexicalized trees",
 )
 
 # Generic GHC/Prelude runtime-crash signatures -- a different *kind* of
@@ -171,37 +176,49 @@ def literal_reason(inference_row: dict) -> str:
     """A text-free tag for why a row predicted "literal" -- status plus
     exit code (run_automatic_contextual_pipeline.py uses a distinct exit
     code per failure kind: 3 gf-parse-failed, 4 semantic-composition-
-    failed, 5 contract-target-qid-unresolved, 2 source-qid-unresolved -- no
-    candidate QID at all for the source surface in the snapshot's own
-    aliases.jsonl, or (--contract-target only) not exactly one -- 6
-    source-disambiguation-ambiguous -- two or more source candidates each
-    independently ran the tower's full per-layer narrowing to a non-empty
-    final fiber, and the pipeline refuses to guess between them). Exit 1
-    covers three different origins that all end up looking identical at
-    this level -- everything resolve_action/propose_contextual_scenario.py
-    itself raises as a ValueError (target-occurrence-not-found/
-    unsupported-action-role/nested-modifier-unsupported), reaching
-    run_automatic_contextual_pipeline.py as an uncaught CalledProcessError
-    from its own `subprocess.run(..., check=True)` call; the case where
-    every one of the disambiguation loop's candidates failed its own
-    engine invocation outright (not just an empty fiber), which the
-    pipeline surfaces by propagating that candidate's own exit code; and,
-    within that same case, GHC's own exit code for an uncaught runtime
-    exception (a partial function applied outside its domain, a
-    non-exhaustive pattern match, ...) -- always 1 as well, same as
+    failed, 5 contract-target-qid-unresolved, 7 gf-parse-empty (GF's
+    parser ran successfully but produced zero lexicalized trees), 2
+    source-qid-unresolved -- no candidate QID at all for the source
+    surface in the snapshot's own aliases.jsonl, or (--contract-target
+    only) not exactly one -- 6 source-disambiguation-ambiguous -- two or
+    more source candidates each independently ran the tower's full
+    per-layer narrowing to a non-empty final fiber, and the pipeline
+    refuses to guess between them). Exit 1 covers three different origins
+    that all end up looking identical at this level -- everything
+    resolve_action/propose_contextual_scenario.py itself raises as a
+    ValueError (target-occurrence-not-found/unsupported-action-role/
+    nested-modifier-unsupported), reaching run_automatic_contextual_pipeline.py
+    as an uncaught CalledProcessError from its own `subprocess.run(...,
+    check=True)` call; the case where every one of the disambiguation
+    loop's candidates failed its own engine invocation outright (not just
+    an empty fiber), which the pipeline surfaces by propagating that
+    candidate's own exit code; and, within that same case, GHC's own exit
+    code for an uncaught runtime exception -- always 1 as well, same as
     System.Exit.die and a `fail` reaching GHC's default top-level handler,
     so the exit code alone genuinely cannot tell any of these three apart
     (see GENERIC_RUNTIME_CRASH_TOKENS's own comment for why that
-    possibility gets a second, broader pass). So for exit 1 this also
-    searches the row's own "failure" text (never exposed itself) for one of
-    KNOWN_FAILURE_TOKENS, then -- if none of those precise, this-codebase
-    tokens match -- one of GENERIC_RUNTIME_CRASH_TOKENS (see its own
-    comment for why a separate, broader pass exists), and reports only the
-    matched token name, or "failed:exit1:unrecognized" if neither matches.
-    Exit 2 similarly gets a sub-tag from exit2_candidate_bucket -- see its
-    own docstring. Carries no sentence text either way, so this is safe to
-    upload as a CI artifact even though the inference row it's drawn from
-    is not.
+    possibility gets a second, broader pass). A fourth exit-1 origin used
+    to exist here too: a bare `raise SystemExit("some string")` prints
+    that string and exits 1 without the JSON-"status" convention every
+    sibling failure follows -- this is exactly what
+    run_automatic_contextual_pipeline.py's "GF returned no lexicalized
+    trees" case did until fingerprint_failure_text's safe, content-free
+    hashing (no guessed token needed) matched a locally-reproduced
+    fingerprint of that exact 32-character string, confirming it as the
+    single cause behind every "unrecognized" row two guessed rounds of
+    KNOWN_FAILURE_TOKENS/GENERIC_RUNTIME_CRASH_TOKENS additions had missed.
+    Fixed at the source (now exit 7, JSON-wrapped like every sibling); the
+    string is kept in KNOWN_FAILURE_TOKENS below purely as a defensive
+    backward-compat match, in case any already-produced data still has
+    it. So for exit 1 this also searches the row's own "failure" text
+    (never exposed itself) for one of KNOWN_FAILURE_TOKENS, then -- if
+    none of those precise, this-codebase tokens match -- one of
+    GENERIC_RUNTIME_CRASH_TOKENS (see its own comment for why a separate,
+    broader pass exists), and reports only the matched token name, or
+    "failed:exit1:unrecognized" if neither matches. Exit 2 similarly gets
+    a sub-tag from exit2_candidate_bucket -- see its own docstring.
+    Carries no sentence text either way, so this is safe to upload as a
+    CI artifact even though the inference row it's drawn from is not.
     """
     if inference_row.get("status") == "ok":
         return "ok:empty-fiber"

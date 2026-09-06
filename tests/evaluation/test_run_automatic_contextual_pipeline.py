@@ -357,5 +357,85 @@ class SourceDisambiguationTests(unittest.TestCase):
         self.assertEqual(payload["status"], "source-qid-unresolved")
 
 
+class GfParseEmptyTests(unittest.TestCase):
+    """Regression test for a real bug found via a real
+    contextual-tower-evaluation.yml run: the "no lexicalized trees"
+    branch used a bare `raise SystemExit("some string")`, which prints
+    that string and exits 1 without the JSON-"status" convention every
+    sibling failure in this function follows. That made it invisible to
+    score_contextual_detection.py's exit-1 token search -- two full CI
+    rounds of guessing new KNOWN_FAILURE_TOKENS/GENERIC_RUNTIME_CRASH_TOKENS
+    entries found nothing, because the actual message was never among
+    them, until fingerprint_failure_text's safe hashing (no content, just
+    a SHA-256 prefix and a length) matched a locally-reproduced
+    fingerprint of this exact 32-character string. Fixed by giving it its
+    own exit code (7), JSON-wrapped like gf-parse-failed/
+    semantic-composition-failed/contract-target-qid-unresolved.
+    """
+
+    def test_gf_parse_producing_no_trees_gets_its_own_exit_code(self) -> None:
+        sys.argv = [
+            "run_automatic_contextual_pipeline.py",
+            "--engine",
+            "build/metonymy",
+            "--snapshot",
+            "data/wikidata-openalex-snapshot",
+            "--sentence",
+            "Liverpool announced a new programme",
+            "--source",
+            "Liverpool",
+        ]
+
+        def fake_run(command, **kwargs):
+            if command[0] == "python3":
+                return propose_proposal(["Q24826"])
+            if command[1] == "parse":
+                return subprocess.CompletedProcess(
+                    args=command, returncode=0, stdout="", stderr=""
+                )
+            raise AssertionError(f"unexpected command: {command}")
+
+        stdout = io.StringIO()
+        with patch("subprocess.run", side_effect=fake_run):
+            with redirect_stdout(stdout):
+                with self.assertRaises(SystemExit) as raised:
+                    run_automatic_contextual_pipeline.main()
+        self.assertEqual(raised.exception.code, 7)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["status"], "gf-parse-empty")
+
+    def test_a_parser_failed_message_also_counts_as_no_trees(self) -> None:
+        sys.argv = [
+            "run_automatic_contextual_pipeline.py",
+            "--engine",
+            "build/metonymy",
+            "--snapshot",
+            "data/wikidata-openalex-snapshot",
+            "--sentence",
+            "Liverpool announced a new programme",
+            "--source",
+            "Liverpool",
+        ]
+
+        def fake_run(command, **kwargs):
+            if command[0] == "python3":
+                return propose_proposal(["Q24826"])
+            if command[1] == "parse":
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=0,
+                    stdout="The parser failed at token 3\n",
+                    stderr="",
+                )
+            raise AssertionError(f"unexpected command: {command}")
+
+        stdout = io.StringIO()
+        with patch("subprocess.run", side_effect=fake_run):
+            with redirect_stdout(stdout):
+                with self.assertRaises(SystemExit) as raised:
+                    run_automatic_contextual_pipeline.main()
+        self.assertEqual(raised.exception.code, 7)
+
+
 if __name__ == "__main__":
     unittest.main()
