@@ -61,6 +61,36 @@ KNOWN_FAILURE_TOKENS = (
 )
 
 
+def exit2_candidate_bucket(failure_text: str) -> str:
+    """Split exit 2 (source-qid-unresolved) into zero vs ambiguous candidates.
+
+    run_automatic_contextual_pipeline.py's exit-2 branch prints the full
+    proposal dict -- including "source_qid_candidates", a list of QIDs,
+    never sentence text -- to stdout before raising SystemExit(2), and
+    that is the only thing it prints on that path; run_contextual_corpus.py
+    captures the subprocess's stdout+stderr into this row's "failure"
+    field unconditionally on any non-zero exit, not only exit 1. Parsing
+    it back out distinguishes "the surface matched no Wikidata alias at
+    all" from "the surface matched more than one, and the linker's
+    exact-alias-or-abstain policy (build_wikidata_api_index.py's
+    search_exact: "an ambiguous surface simply resolves to more than one
+    QID here, and callers decide what to do with that") refused to
+    guess" -- two causes needing very different fixes, previously
+    conflated under one undifferentiated "failed:exit2" tally. A QID list
+    carries no sentence text, so this stays as safe to upload as the
+    exit-1 token extraction above. Falls back to "unrecognized" if the
+    field isn't parseable JSON with that key, so an unexpected shape
+    degrades gracefully instead of crashing the scorer.
+    """
+    try:
+        candidates = json.loads(failure_text)["source_qid_candidates"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return "unrecognized"
+    if not candidates:
+        return "zero-candidates"
+    return "ambiguous-candidates"
+
+
 def literal_reason(inference_row: dict) -> str:
     """A text-free tag for why a row predicted "literal" -- status plus
     exit code (run_automatic_contextual_pipeline.py uses a distinct exit
@@ -76,8 +106,10 @@ def literal_reason(inference_row: dict) -> str:
     for exit 1 this also searches the row's own "failure" text (never
     exposed itself) for one of KNOWN_FAILURE_TOKENS and reports only the
     matched token name, or "failed:exit1:unrecognized" if none match.
-    Carries no sentence text either way, so this is safe to upload as a CI
-    artifact even though the inference row it's drawn from is not.
+    Exit 2 similarly gets a sub-tag from exit2_candidate_bucket -- see its
+    own docstring. Carries no sentence text either way, so this is safe
+    to upload as a CI artifact even though the inference row it's drawn
+    from is not.
     """
     if inference_row.get("status") == "ok":
         return "ok:empty-fiber"
@@ -88,6 +120,8 @@ def literal_reason(inference_row: dict) -> str:
             if token in failure_text:
                 return f"failed:exit1:{token}"
         return "failed:exit1:unrecognized"
+    if exit_code == 2:
+        return f"failed:exit2:{exit2_candidate_bucket(inference_row.get('failure', ''))}"
     return f"failed:exit{exit_code}"
 
 

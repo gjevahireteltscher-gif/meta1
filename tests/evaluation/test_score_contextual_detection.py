@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "evaluation"))
 
+import json  # noqa: E402
+
 from score_contextual_detection import literal_reason, predict, score  # noqa: E402
 
 
@@ -101,6 +103,69 @@ class LiteralReasonTests(unittest.TestCase):
         self.assertNotIn("Waterloo", reason)
         self.assertNotIn("confabulates", reason)
         self.assertNotIn("treaty", reason)
+
+    def test_exit2_with_zero_candidates_is_tagged_distinctly(self) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 2,
+            "failure": json.dumps(
+                {"status": "source-qid-unresolved", "source_qid_candidates": []}
+            ),
+        }
+        self.assertEqual(literal_reason(row), "failed:exit2:zero-candidates")
+
+    def test_exit2_with_multiple_candidates_is_tagged_ambiguous(self) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 2,
+            "failure": json.dumps(
+                {
+                    "status": "source-qid-unresolved",
+                    "source_qid_candidates": ["Q1", "Q2"],
+                }
+            ),
+        }
+        self.assertEqual(literal_reason(row), "failed:exit2:ambiguous-candidates")
+
+    def test_exit2_with_unparseable_failure_text_is_unrecognized_not_a_crash(
+        self,
+    ) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 2,
+            "failure": "not valid json at all",
+        }
+        self.assertEqual(literal_reason(row), "failed:exit2:unrecognized")
+
+    def test_exit2_with_no_failure_field_at_all_is_unrecognized_not_a_crash(
+        self,
+    ) -> None:
+        row = {"id": "a", "status": "failed", "exit_code": 2}
+        self.assertEqual(literal_reason(row), "failed:exit2:unrecognized")
+
+    def test_exit2_extraction_never_leaks_qid_candidates_or_sentence_text(
+        self,
+    ) -> None:
+        row = {
+            "id": "a",
+            "status": "failed",
+            "exit_code": 2,
+            "failure": json.dumps(
+                {
+                    "sentence": "The Kremlin announced a new policy",
+                    "status": "source-qid-unresolved",
+                    "source_qid_candidates": ["Q1234", "Q5678"],
+                }
+            ),
+        }
+        reason = literal_reason(row)
+        self.assertEqual(reason, "failed:exit2:ambiguous-candidates")
+        self.assertNotIn("Kremlin", reason)
+        self.assertNotIn("Q1234", reason)
+        self.assertNotIn("Q5678", reason)
 
 
 class ScoreTests(unittest.TestCase):
