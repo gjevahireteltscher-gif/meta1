@@ -1,5 +1,5 @@
 concrete MetonymyEng of Metonymy =
-  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, (R=ResEng) in {
+  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, ExtraEng, (R=ResEng) in {
 
   lincat
     S = S ;
@@ -30,6 +30,18 @@ concrete MetonymyEng of Metonymy =
     OrS s1 s2 = mkS or_Conj s1 s2 ;
     AndNP np1 np2 = mkNP and_Conj np1 np2 ;
     OrNP np1 np2 = mkNP or_Conj np1 np2 ;
+    PredConjVP np vp1 vp2 =
+      PredVPS np
+        (ConjVPS and_Conj
+          (BaseVPS
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
+    PredOrConjVP np vp1 vp2 =
+      PredVPS np
+        (ConjVPS or_Conj
+          (BaseVPS
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
     ModifyNP np pp = mkNP np pp ;
     ModifyRel np verb object =
       mkNP np (mkRS (mkRCl which_RP (mkVP verb object))) ;

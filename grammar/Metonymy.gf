@@ -30,6 +30,8 @@ abstract Metonymy = {
     OrS : S -> S -> S ;
     AndNP : NP -> NP -> NP ;
     OrNP : NP -> NP -> NP ;
+    PredConjVP : NP -> VP -> VP -> S ;
+    PredOrConjVP : NP -> VP -> VP -> S ;
     ModifyNP : NP -> PP -> NP ;
     ModifyRel : NP -> V2 -> NP -> NP ;
     IndefCN : CN -> NP ;

@@ -48,6 +48,8 @@ ARITIES = {
     "OrS": 2,
     "AndNP": 2,
     "OrNP": 2,
+    "PredConjVP": 3,
+    "PredOrConjVP": 3,
     "ModifyNP": 2,
     "ModifyRel": 3,
     "IndefCN": 1,
