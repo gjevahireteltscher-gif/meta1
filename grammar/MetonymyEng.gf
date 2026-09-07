@@ -13,16 +13,7 @@ concrete MetonymyEng of Metonymy =
     Pred np vp = mkS (mkCl np vp) ;
     NegPred np vp = mkS negativePol (mkCl np vp) ;
     Compl verb object = mkVP verb object ;
-    -- ExtendEng qualifier required: Extra.gf (opened below for
-    -- MkVPS/ConjVPS/PredVPS/BaseVPS) independently declares its own
-    -- PassAgentVPSlash : VPSlash -> NP -> VP with the identical
-    -- signature, which made this pre-existing unqualified call
-    -- ambiguous the moment ExtraEng was added to `open` -- confirmed by
-    -- reading Extra.gf's actual source, not guessed -- and broke an
-    -- unrelated relative-clause test in the first real CI run against
-    -- that addition (grammar compiled without error either way, but the
-    -- compiled grammar behaved differently downstream).
-    PassCompl verb agent = ExtendEng.PassAgentVPSlash (SlashV2a verb) agent ;
+    PassCompl verb agent = PassAgentVPSlash (SlashV2a verb) agent ;
     InPP np = SyntaxEng.mkAdv in_Prep np ;
     AboutPP np = SyntaxEng.mkAdv (mkPrep "about") np ;
     WithPP np = SyntaxEng.mkAdv (mkPrep "with") np ;
@@ -40,17 +31,17 @@ concrete MetonymyEng of Metonymy =
     AndNP np1 np2 = mkNP and_Conj np1 np2 ;
     OrNP np1 np2 = mkNP or_Conj np1 np2 ;
     PredConjVP np vp1 vp2 =
-      ExtraEng.PredVPS np
-        (ExtraEng.ConjVPS and_Conj
-          (ExtraEng.BaseVPS
-            (ExtraEng.MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
-            (ExtraEng.MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
+      PredVPS np
+        (ConjVPS and_Conj
+          (BaseVPS
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
     PredOrConjVP np vp1 vp2 =
-      ExtraEng.PredVPS np
-        (ExtraEng.ConjVPS or_Conj
-          (ExtraEng.BaseVPS
-            (ExtraEng.MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
-            (ExtraEng.MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
+      PredVPS np
+        (ConjVPS or_Conj
+          (BaseVPS
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
+            (MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
     ModifyNP np pp = mkNP np pp ;
     ModifyRel np verb object =
       mkNP np (mkRS (mkRCl which_RP (mkVP verb object))) ;
