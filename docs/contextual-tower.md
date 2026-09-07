@@ -292,6 +292,79 @@ the Python-side tree-walker contract against hand-built tree strings,
 independent of whether the grammar itself compiles; that only happens
 in CI/`.cursor`.
 
+**Measured effect: zero.** A real `contextual-tower-evaluation.yml` run
+against this exact commit produced byte-identical `literal_prediction_reasons`
+counts before and after -- `AndS`/`OrS`/`AndNP`/`OrNP` plus the eight new
+prepositions changed nothing on the real 150+150 sample. Locally
+reproducing that sample (pure Python, `propose_contextual_scenario.py`
+needs no GF toolchain) explained why: `AndS`/`OrS` only join two *full*
+clauses, each with its own subject *repeated* in the surface text ("X did
+A and X did B") -- but real "and" in corpus text is overwhelmingly VP
+coordination with a *shared* subject ("X did A and did B", subject not
+repeated), a different RGL construction entirely (see "VP coordination"
+below). And 199/281 (70%) of that sample's sentences contain a comma
+somewhere -- not for listing, but for appositives ("his sister, Katherine,
+and father..."), fronted adverbials ("Compared to other English cities,
+Sheffield has..."), and, most commonly, a participial phrase *before* the
+subject ("Born in Eisenach, the daughter of a Saxe-Weimar official, Luise
+von G. was...") -- something the grammar has no rule for at all, which
+breaks the parse regardless of whether "and" or these eight prepositions
+appear anywhere in the same sentence. See the plan file's "Расширение
+GF-грамматики: закрытие оставшихся пробелов парсинга" section for the
+full phased plan this finding produced.
+
+### VP coordination with a shared subject
+
+Added `PredConjVP`/`PredOrConjVP : NP -> VP -> VP -> S` -- "NP did VP1 and
+VP2" with one subject, the shape real "and"/"or" coordination
+overwhelmingly takes (unlike `AndS`/`OrS`, see above). Verified against
+the pinned gf-rgl commit's actual source: `Extra.gf` declares
+`cat VPS ; [VPS]{2}` and `fun MkVPS : Temp -> Pol -> VP -> VPS`,
+`ConjVPS : Conj -> [VPS] -> VPS`, `PredVPS : NP -> VPS -> S` -- a separate
+category specifically for VP-level coordination, distinct from `S`-level
+`ConjS`. `Temp`/`Pol` values come from `Constructors.gf` convenience
+constants already reachable via the existing `open SyntaxEng`
+(`presentTense : Tense`, `simultaneousAnt : Ant`, `positivePol : Pol`,
+`mkTemp : Tense -> Ant -> Temp = TTAnt`) -- only `MkVPS`/`ConjVPS`/
+`PredVPS`/`BaseVPS` themselves needed a new `open ExtraEng`.
+
+**Opening `ExtraEng` took two real CI rounds to get right, because it
+silently made two pre-existing unqualified calls ambiguous rather than
+raising a hard error.** `Extra.gf` independently redeclares its own
+`PassAgentVPSlash : VPSlash -> NP -> VP` (identical signature to the one
+`PassCompl` already used from `Extend`/`ExtendEng` for the passive-voice
+work) and its own `which_RP` local oper in `ExtraEng.gf` (colliding with
+`ConstructorsEng.which_RP`, already used unqualified by `ModifyRel`/
+`ModifyRelCN`). The first CI round qualified only the first collision
+(`ExtendEng.PassAgentVPSlash`) and still failed -- the grammar compiled
+without a hard error either way, but a real existing test broke
+(`test_qid_fiber.py`'s `test_wordnet_cn_relative_clause_parses_in_gf`,
+"Anna examines an institution that conducts physics" stopped parsing
+entirely, "The parser failed at token 5: \"that\""), even though that
+sentence never touches `PassCompl`. The actual second collision was
+sitting in the *same* failing run's own compiler output the whole time
+(`grammar/MetonymyEng.gf:59-60: ... conflict ExtraEng.which_RP,
+ConstructorsEng.which_RP`) -- found by reading the full warning text
+instead of only the file:line references, not by a third guess. Both
+calls are now qualified (`ExtendEng.PassAgentVPSlash`,
+`SyntaxEng.which_RP`), and `PredConjVP`/`PredOrConjVP`'s own
+`MkVPS`/`ConjVPS`/`PredVPS`/`BaseVPS` calls are qualified as `ExtraEng.X`
+too, matching this file's own existing idiom (`SyntaxEng.mkAdv` was
+already used qualified elsewhere here) -- **any further RGL module this
+grammar opens should be checked against its own compiler warnings for
+"conflict" lines the same way, not assumed clean just because
+compilation succeeds without a hard error.**
+
+`compile_gf_constraints` needed no changes: `first_node`'s generic
+recursion already reaches into `PredConjVP`'s VP arguments the same way
+it reaches into any other constructor's arguments -- it stops at the
+*first* `Compl`/`PassCompl` node found by depth-first order (subject,
+then VP1, then VP2), so a `PredConjVP` with a recognizable object in VP1
+resolves from VP1, exactly as a plain `Compl` would.
+`tests/evaluation/test_compile_gf_constraints_vp_coordination.py` covers
+the arity and this tree-walker contract; as with every other grammar
+change here, the RGL wiring itself is unverified until CI compiles it.
+
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 WordNet now projects `political`, `commercial`, `educational`, and
 `scientific` as modifier sorts. The composition matrix covers agreement,
