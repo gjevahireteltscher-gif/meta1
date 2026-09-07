@@ -365,6 +365,59 @@ resolves from VP1, exactly as a plain `Compl` would.
 the arity and this tree-walker contract; as with every other grammar
 change here, the RGL wiring itself is unverified until CI compiles it.
 
+**Measured effect: zero, again.** A real `contextual-tower-evaluation.yml`
+run against this exact commit produced byte-identical
+`literal_prediction_reasons` counts to the run before VP coordination
+landed. Local diagnosis of the same reproduced sample explained why: of
+157 sentences containing "and"/"or", 124 (79%) *also* contain a comma
+marking some other, still-unaddressed construction -- grammar gaps
+overlap heavily within the same sentences, so a single-construction fix
+essentially never flips a sentence from unparseable to parseable on its
+own. This motivated batching several more verified, low-risk
+constructions together instead of measuring after each one individually
+-- see the plan file's "Пакетное расширение грамматики" section.
+
+### Copula, generalized relative clauses, and the genitive
+
+Three more constructors, added together after the VP-coordination
+finding above, all verified against the pinned gf-rgl commit's actual
+source and all reachable via modules already open (no new collision
+surface -- `ExtraEng`'s only two collisions, found the hard way above,
+are the complete list from its own compiler warnings):
+
+- **`PredCopNP : NP -> NP -> S`** -- copula predication ("Henry County is
+  a county in Alabama"). `Compl`/`PassCompl` were the *only* VP-building
+  rules before this, both requiring a `V2`, so a bare "NP is NP2"
+  sentence -- extremely common in the biographical/geographic register
+  WiMCor and ConMeC draw from -- had no derivation at all. Via
+  `Constructors.gf`'s `mkCl : NP -> NP -> Cl`.
+- **`ModifyRelVP`/`ModifyRelCNVP : NP/CN -> VP -> NP/CN`** -- generalizes
+  `ModifyRel`/`ModifyRelCN` (hardcoded to a `V2`+object pair) to an
+  arbitrary `VP`. `mkRCl : RP -> VP -> RCl` is itself the general
+  overload `ModifyRel` already routes through internally (via
+  `mkRCl SyntaxEng.which_RP (mkVP verb object)`) -- only our own
+  abstract signature was artificially narrower than what RGL already
+  supports. Lets a relative clause use `Compl`, `PassCompl`, or any
+  future VP-building rule uniformly ("which signed X", "which was
+  signed by X", ...), instead of only active-transitive ones.
+  `scripts/contextual_rule_compiler.py`'s `lexical_head` -- which already
+  transparently unwraps `ModifyRel`/`ModifyRelCN` while searching for a
+  modified NP's head noun -- now unwraps `ModifyRelVP`/`ModifyRelCNVP`
+  the same way, so "the general who signed the treaty" still resolves
+  its head noun ("general") through the wrapper exactly as the original,
+  narrower constructors already did.
+- **`PossNP : NP -> CN -> NP`** -- possessive/genitive ("Tolstoy's
+  works" as a live construction, not only the one hand-written example
+  NP already in this grammar). Via `Extra.gf`'s `GenNP : NP -> Quant`
+  combined with the already-confirmed `mkNP : Quant -> CN -> NP`.
+
+`tests/evaluation/test_compile_gf_constraints_copula_relative_genitive.py`
+covers all three: a pure-copula tree (no `Compl`/`PassCompl` at all) is a
+safe no-op rather than a crash, `ModifyRelVP`/`ModifyRelCNVP` correctly
+resolve their head noun through the new `lexical_head` unwrapping, and a
+`PossNP` object degrades safely (not yet a recognized shape for
+`_noun_lemma`, the same class of safe degradation `AndNP` already gets).
+
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 WordNet now projects `political`, `commercial`, `educational`, and
 `scientific` as modifier sorts. The composition matrix covers agreement,

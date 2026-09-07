@@ -32,11 +32,15 @@ abstract Metonymy = {
     OrNP : NP -> NP -> NP ;
     PredConjVP : NP -> VP -> VP -> S ;
     PredOrConjVP : NP -> VP -> VP -> S ;
+    PredCopNP : NP -> NP -> S ;
     ModifyNP : NP -> PP -> NP ;
     ModifyRel : NP -> V2 -> NP -> NP ;
+    ModifyRelVP : NP -> VP -> NP ;
     IndefCN : CN -> NP ;
     DefCN : CN -> NP ;
     ModifyRelCN : CN -> V2 -> NP -> CN ;
+    ModifyRelCNVP : CN -> VP -> CN ;
+    PossNP : NP -> CN -> NP ;
     EveryCN : String -> String -> NP ;
     OpenAdjDefCN : String -> String -> String -> NP ;
     OpenAdjIndefCN : String -> String -> String -> NP ;

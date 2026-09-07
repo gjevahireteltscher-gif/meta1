@@ -48,6 +48,13 @@ concrete MetonymyEng of Metonymy =
           (ExtraEng.BaseVPS
             (ExtraEng.MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp1)
             (ExtraEng.MkVPS (mkTemp presentTense simultaneousAnt) positivePol vp2))) ;
+    -- Copula predication ("Henry County is a county in ..."), missing
+    -- entirely before this: Compl/PassCompl are the only VP-building
+    -- rules, both requiring a V2, so a bare "NP is NP2" sentence had no
+    -- derivation at all. mkCl : NP -> NP -> Cl ("she is the woman") is
+    -- already reachable via the existing `open SyntaxEng`, no new
+    -- collision surface.
+    PredCopNP np1 np2 = mkS (mkCl np1 np2) ;
     ModifyNP np pp = mkNP np pp ;
     -- SyntaxEng qualifier required for the same reason as
     -- ExtendEng.PassAgentVPSlash above: ExtraEng.gf independently
@@ -61,10 +68,26 @@ concrete MetonymyEng of Metonymy =
     -- guessed a second time.
     ModifyRel np verb object =
       mkNP np (mkRS (mkRCl SyntaxEng.which_RP (mkVP verb object))) ;
+    -- Generalizes ModifyRel to an arbitrary VP instead of a hardcoded
+    -- V2+object: mkRCl : RP -> VP -> RCl is itself the general overload
+    -- (ModifyRel above already routes through it via `mkVP verb
+    -- object`), so this only relaxes our own abstract signature -- no
+    -- new RGL surface. Lets a relative clause use Compl, PassCompl, or
+    -- any future VP-building rule uniformly ("which signed X", "which
+    -- was signed", ...).
+    ModifyRelVP np vp = mkNP np (mkRS (mkRCl SyntaxEng.which_RP vp)) ;
     IndefCN noun = mkNP a_Det noun ;
     DefCN noun = mkNP the_Det noun ;
     ModifyRelCN noun verb object =
       mkCN noun (mkRS (mkRCl SyntaxEng.which_RP (mkVP verb object))) ;
+    ModifyRelCNVP noun vp = mkCN noun (mkRS (mkRCl SyntaxEng.which_RP vp)) ;
+    -- Possessive/genitive ("Tolstoy's works" as a live construction, not
+    -- only the hand-written WorksOfTolstoy example): Extra.gf's
+    -- GenNP : NP -> Quant combined with the already-confirmed
+    -- mkNP : Quant -> CN -> NP. ExtraEng is already open (Phase 1); its
+    -- full set of `conflict` warnings was already read in that CI run
+    -- and GenNP was not among them.
+    PossNP np cn = mkNP (ExtraEng.GenNP np) cn ;
     EveryCN singular plural =
       lin NP {
         s = \\_ => "every" ++ singular.s ;
