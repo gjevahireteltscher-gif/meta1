@@ -18,6 +18,11 @@ abstract Metonymy = {
     AboutPP : NP -> PP ;
     WithPP : NP -> PP ;
     ForPP : NP -> PP ;
+    PrepPP : String -> NP -> PP ;
+    AndS : S -> S -> S ;
+    OrS : S -> S -> S ;
+    AndNP : NP -> NP -> NP ;
+    OrNP : NP -> NP -> NP ;
     ModifyNP : NP -> PP -> NP ;
     ModifyRel : NP -> V2 -> NP -> NP ;
     IndefCN : CN -> NP ;

@@ -36,6 +36,11 @@ ARITIES = {
     "AboutPP": 1,
     "WithPP": 1,
     "ForPP": 1,
+    "PrepPP": 2,
+    "AndS": 2,
+    "OrS": 2,
+    "AndNP": 2,
+    "OrNP": 2,
     "ModifyNP": 2,
     "ModifyRel": 3,
     "IndefCN": 1,
@@ -682,6 +687,19 @@ def compile_gf_constraints(
         if node.constructor == "ModifyNP" and len(node.arguments) == 2:
             head, modifier = node.arguments
             walk(head)
+            # Grammar/Metonymy.gf's PrepPP (an arbitrary-preposition PP,
+            # added alongside AndS/OrS/AndNP/OrNP so more real sentences
+            # can be GF-parsed at all -- see docs/contextual-tower.md's
+            # "Source-mention disambiguation" section for why parsing was
+            # the dominant bottleneck) is deliberately not in this table:
+            # its preposition is a runtime string, not a fixed constructor
+            # name, and context_templates has no entries keyed by an
+            # open-ended preposition anyway. A PrepPP modifier still walks
+            # safely (the generic "for argument in node.arguments: walk"
+            # fallback below reaches it) -- it just does not yet
+            # contribute a FrameModifier constraint the way these four
+            # fixed prepositions do. Wiring that up is a natural follow-up
+            # once context_templates data actually has entries for it.
             pp_constructions = {
                 "InPP": ("ModifyNP+InPP", "in"),
                 "AboutPP": ("ModifyNP+AboutPP", "about"),

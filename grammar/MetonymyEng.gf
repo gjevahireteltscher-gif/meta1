@@ -18,6 +18,11 @@ concrete MetonymyEng of Metonymy =
     AboutPP np = SyntaxEng.mkAdv (mkPrep "about") np ;
     WithPP np = SyntaxEng.mkAdv (mkPrep "with") np ;
     ForPP np = SyntaxEng.mkAdv (mkPrep "for") np ;
+    PrepPP prep np = SyntaxEng.mkAdv (mkPrep prep.s) np ;
+    AndS s1 s2 = mkS and_Conj s1 s2 ;
+    OrS s1 s2 = mkS or_Conj s1 s2 ;
+    AndNP np1 np2 = mkNP and_Conj np1 np2 ;
+    OrNP np1 np2 = mkNP or_Conj np1 np2 ;
     ModifyNP np pp = mkNP np pp ;
     ModifyRel np verb object =
       mkNP np (mkRS (mkRCl which_RP (mkVP verb object))) ;

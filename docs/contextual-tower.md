@@ -211,6 +211,65 @@ accepted one-entity-per-hole boundary), tense/aspect beyond present, and
 further PP/modifier stacking beyond what the existing recursive
 `ModifyNP` walker already handles structurally.
 
+### Coordination and arbitrary prepositions
+
+`Metonymy.gf`'s abstract syntax previously had exactly one clause-level
+category and no cross-sentence or coordination structure at all -- a
+handful of `Pred`/`Compl`/`PassCompl`-style constructions and four
+hardcoded prepositions (`InPP`/`AboutPP`/`WithPP`/`ForPP`). Locally
+reproducing the real contextual-tower-evaluation.yml sample (see the
+"Source-mention disambiguation" section above) confirmed this was the
+dominant remaining bottleneck once the source-disambiguation and
+gf_sentence-scoping fixes landed: `gf-parse-empty` accounted for the
+large majority of both corpora's failures once other, earlier stages
+stopped masking it, and it kept the pool constant even after scoping
+gf_sentence down to a single sentence -- i.e. the failures were real
+single-sentence construction/vocabulary gaps, not a paragraph-scoping
+artifact.
+
+Added `AndS`/`OrS : S -> S -> S`, `AndNP`/`OrNP : NP -> NP -> NP`, and
+`PrepPP : String -> NP -> PP` (an arbitrary-preposition PP, parsed the
+same open-vocabulary way `OpenPN`/`EveryCN` already are). All five
+linearize through RGL functions already reachable via the existing
+`open SyntaxEng` (no new `open` needed -- confirmed against the pinned
+gf-rgl commit's actual source: `Syntax`'s own interface is `Constructors,
+Cat, Structural, Combinators`, and `Constructors.gf` already carries the
+binary-coordination overloads `mkS : Conj -> S -> S -> S` and
+`mkNP : Conj -> NP -> NP -> NP`, while `and_Conj`/`or_Conj` live in
+`Structural.gf`): `AndS s1 s2 = mkS and_Conj s1 s2`,
+`AndNP np1 np2 = mkNP and_Conj np1 np2`,
+`PrepPP prep np = SyntaxEng.mkAdv (mkPrep prep.s) np`. Because `lincat
+NP = NP`/`S = S` throughout, an `AndNP`/`OrNP` result composes
+everywhere a plain `NP` already could (as a `Compl` object, a `Pred`
+subject, ...) with no special-casing elsewhere, and gets RGL's own
+plural-agreement handling for free -- unlike the hand-rolled `Open*`
+family, which fakes agreement via manual string concatenation.
+
+`scripts/contextual_rule_compiler.py`'s `compile_gf_constraints` tree
+walker required no structural changes: `first_node`'s recursion already
+walks into any constructor's arguments generically, so it finds a
+`Compl` node nested inside an `AndS` exactly as it would anywhere else,
+and `_noun_lemma`/`_proper_lemma` already degrade to a safe no-op (no
+constraint, no crash) for a constructor shape they do not recognize --
+the same protection a bare-proper-noun object already relied on --
+which is what an `AndNP`/`OrNP` object gets today. `PrepPP` is
+deliberately **not** wired into the existing `ModifyNP`+fixed-preposition
+composition-matrix lookup (`InPP`/`AboutPP`/`WithPP`/`ForPP`'s hardcoded
+table): its preposition is a runtime string, not a fixed constructor
+name, and `context_templates` data has no entries keyed by an arbitrary
+preposition yet. A `PrepPP` modifier still walks safely; it just does
+not (yet) contribute the extra `FrameModifier` constraint those four do
+-- a natural follow-up once corresponding `context_templates` data
+exists.
+
+As with the passive-voice addition, the grammar edit and RGL function
+names are verified against the pinned `gf-rgl` commit's actual source
+but not locally compilable (no GF toolchain on this machine) --
+`tests/evaluation/test_compile_gf_constraints_coordination.py` covers
+the Python-side tree-walker contract against hand-built tree strings,
+independent of whether the grammar itself compiles; that only happens
+in CI/`.cursor`.
+
 Adjective–noun semantics are compiled bottom-up from the actual GF subtree.
 WordNet now projects `political`, `commercial`, `educational`, and
 `scientific` as modifier sorts. The composition matrix covers agreement,
