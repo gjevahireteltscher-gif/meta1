@@ -36,7 +36,14 @@ ARITIES = {
     "AboutPP": 1,
     "WithPP": 1,
     "ForPP": 1,
-    "PrepPP": 2,
+    "OnPP": 1,
+    "AtPP": 1,
+    "FromPP": 1,
+    "ByPP": 1,
+    "OverPP": 1,
+    "UnderPP": 1,
+    "DuringPP": 1,
+    "NearPP": 1,
     "AndS": 2,
     "OrS": 2,
     "AndNP": 2,
@@ -687,24 +694,36 @@ def compile_gf_constraints(
         if node.constructor == "ModifyNP" and len(node.arguments) == 2:
             head, modifier = node.arguments
             walk(head)
-            # Grammar/Metonymy.gf's PrepPP (an arbitrary-preposition PP,
-            # added alongside AndS/OrS/AndNP/OrNP so more real sentences
-            # can be GF-parsed at all -- see docs/contextual-tower.md's
-            # "Source-mention disambiguation" section for why parsing was
-            # the dominant bottleneck) is deliberately not in this table:
-            # its preposition is a runtime string, not a fixed constructor
-            # name, and context_templates has no entries keyed by an
-            # open-ended preposition anyway. A PrepPP modifier still walks
-            # safely (the generic "for argument in node.arguments: walk"
-            # fallback below reaches it) -- it just does not yet
-            # contribute a FrameModifier constraint the way these four
-            # fixed prepositions do. Wiring that up is a natural follow-up
-            # once context_templates data actually has entries for it.
+            # Grammar/Metonymy.gf's OnPP/AtPP/FromPP/ByPP/OverPP/UnderPP/
+            # DuringPP/NearPP (added alongside AndS/OrS/AndNP/OrNP so more
+            # real sentences can be GF-parsed at all -- see
+            # docs/contextual-tower.md's "Coordination and arbitrary
+            # prepositions" section for why parsing was the dominant
+            # bottleneck) follow the same fixed-constructor-name shape as
+            # the original four, so they slot into this table the same
+            # way. A first attempt used one open-ended `PrepPP : String ->
+            # NP -> PP` instead of eight fixed ones -- reverted after a
+            # real CI run: GF's String category parses as "match any
+            # token", which combined with the already-open OpenPN/Open*
+            # family to create a genuine parse ambiguity ("the political
+            # agreement" gained a spurious second reading as
+            # OpenPN "the" + PrepPP "political" (OpenPN "agreement")),
+            # breaking three existing tests. A closed, named set has no
+            # such ambiguity -- each of these only ever matches its own
+            # fixed word, exactly like the original four already did.
             pp_constructions = {
                 "InPP": ("ModifyNP+InPP", "in"),
                 "AboutPP": ("ModifyNP+AboutPP", "about"),
                 "WithPP": ("ModifyNP+WithPP", "with"),
                 "ForPP": ("ModifyNP+ForPP", "for"),
+                "OnPP": ("ModifyNP+OnPP", "on"),
+                "AtPP": ("ModifyNP+AtPP", "at"),
+                "FromPP": ("ModifyNP+FromPP", "from"),
+                "ByPP": ("ModifyNP+ByPP", "by"),
+                "OverPP": ("ModifyNP+OverPP", "over"),
+                "UnderPP": ("ModifyNP+UnderPP", "under"),
+                "DuringPP": ("ModifyNP+DuringPP", "during"),
+                "NearPP": ("ModifyNP+NearPP", "near"),
             }
             if (
                 isinstance(modifier, GFNode)

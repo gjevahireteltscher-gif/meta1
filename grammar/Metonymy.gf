@@ -18,7 +18,14 @@ abstract Metonymy = {
     AboutPP : NP -> PP ;
     WithPP : NP -> PP ;
     ForPP : NP -> PP ;
-    PrepPP : String -> NP -> PP ;
+    OnPP : NP -> PP ;
+    AtPP : NP -> PP ;
+    FromPP : NP -> PP ;
+    ByPP : NP -> PP ;
+    OverPP : NP -> PP ;
+    UnderPP : NP -> PP ;
+    DuringPP : NP -> PP ;
+    NearPP : NP -> PP ;
     AndS : S -> S -> S ;
     OrS : S -> S -> S ;
     AndNP : NP -> NP -> NP ;

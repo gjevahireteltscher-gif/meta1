@@ -1,13 +1,22 @@
 """compile_gf_constraints must safely traverse trees built with the new
 grammar/Metonymy.gf constructors added to unblock the dominant
-gf-parse-empty bottleneck (see docs/contextual-tower.md's "Source-mention
-disambiguation" section and this session's history): AndS/OrS (sentence
-coordination), AndNP/OrNP (NP coordination), and PrepPP (an
-arbitrary-preposition PP, instead of the four hardcoded InPP/AboutPP/
-WithPP/ForPP). Metonymy.gf's abstract syntax previously had exactly one
-clause-level category with no cross-sentence or coordination structure at
-all, so real corpus sentences using "and"/"or" or any preposition outside
-those four could never produce a GF tree in the first place.
+gf-parse-empty bottleneck (see docs/contextual-tower.md's "Coordination
+and arbitrary prepositions" section and this session's history): AndS/OrS
+(sentence coordination), AndNP/OrNP (NP coordination), and eight new
+fixed prepositions (On/At/From/By/Over/Under/During/Near)PP, alongside
+the original InPP/AboutPP/WithPP/ForPP. Metonymy.gf's abstract syntax
+previously had exactly one clause-level category with no cross-sentence
+or coordination structure at all, so real corpus sentences using
+"and"/"or" or any preposition outside the original four could never
+produce a GF tree in the first place.
+
+The first attempt at the preposition expansion used one open-ended
+`PrepPP : String -> NP -> PP` instead of eight fixed ones -- reverted
+after a real CI run showed it created a genuine parse ambiguity (GF's
+String category parses as "match any token", which combined with the
+already-open OpenPN/Open* family to give some NPs a spurious second
+reading), breaking three existing tests. A closed, named set per
+preposition has no such ambiguity, exactly like the original four.
 
 These are pure Python tests against hand-built GF tree strings -- they do
 not require a compiled grammar. They exercise the tree-walker's contract
@@ -72,8 +81,14 @@ class NewConstructorArityTests(unittest.TestCase):
         self.assertEqual(ARITIES["AndNP"], 2)
         self.assertEqual(ARITIES["OrNP"], 2)
 
-    def test_prep_pp_takes_a_preposition_and_a_noun_phrase(self) -> None:
-        self.assertEqual(ARITIES["PrepPP"], 2)
+    def test_new_fixed_prepositions_take_one_noun_phrase_each(self) -> None:
+        for constructor in (
+            "OnPP", "AtPP", "FromPP", "ByPP",
+            "OverPP", "UnderPP", "DuringPP", "NearPP",
+        ):
+            with self.subTest(constructor=constructor):
+                self.assertEqual(ARITIES[constructor], 1)
+                self.assertEqual(ARITIES[constructor], ARITIES["InPP"])
 
 
 class CompileGfConstraintsCoordinationTests(unittest.TestCase):
@@ -130,12 +145,15 @@ class CompileGfConstraintsCoordinationTests(unittest.TestCase):
         )
         self.assertEqual(len(constraints), 1)
 
-    def test_a_prep_pp_modifier_does_not_crash_the_walker(self) -> None:
-        # PrepPP is deliberately not in compile_gf_constraints' fixed
-        # InPP/AboutPP/WithPP/ForPP table (see the comment at its call
-        # site) -- it should still be walked safely and simply not
-        # contribute an extra FrameModifier constraint from this specific
-        # modifier, while the Compl-derived constraint is unaffected.
+    def test_a_new_fixed_preposition_modifier_does_not_crash_the_walker(
+        self,
+    ) -> None:
+        # NearPP slots into the same ModifyNP+<Prep> table InPP/AboutPP/
+        # WithPP/ForPP already used (see the comment at its call site) --
+        # no matching context_templates entry exists for it here (this
+        # test's LANGUAGE_RULES has none at all), so it contributes no
+        # extra FrameModifier constraint, but it must still be walked
+        # safely and the Compl-derived constraint must be unaffected.
         proposal = base_proposal("Waterloo captured a general near Brussels")
         proposal["role"] = "SubjectHole"
         constraints = compile_gf_constraints(
@@ -143,7 +161,7 @@ class CompileGfConstraintsCoordinationTests(unittest.TestCase):
             'Pred (OpenPN "Waterloo") '
             '(Compl Capture (ModifyNP '
             '(OpenIndefCN "general" "generals") '
-            '(PrepPP "near" (OpenPN "Brussels"))))',
+            '(NearPP (OpenPN "Brussels"))))',
             LANGUAGE_RULES,
             WORDNET_RULES,
             {},

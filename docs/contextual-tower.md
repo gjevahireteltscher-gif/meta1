@@ -228,39 +228,61 @@ single-sentence construction/vocabulary gaps, not a paragraph-scoping
 artifact.
 
 Added `AndS`/`OrS : S -> S -> S`, `AndNP`/`OrNP : NP -> NP -> NP`, and
-`PrepPP : String -> NP -> PP` (an arbitrary-preposition PP, parsed the
-same open-vocabulary way `OpenPN`/`EveryCN` already are). All five
-linearize through RGL functions already reachable via the existing
-`open SyntaxEng` (no new `open` needed -- confirmed against the pinned
-gf-rgl commit's actual source: `Syntax`'s own interface is `Constructors,
-Cat, Structural, Combinators`, and `Constructors.gf` already carries the
-binary-coordination overloads `mkS : Conj -> S -> S -> S` and
-`mkNP : Conj -> NP -> NP -> NP`, while `and_Conj`/`or_Conj` live in
-`Structural.gf`): `AndS s1 s2 = mkS and_Conj s1 s2`,
-`AndNP np1 np2 = mkNP and_Conj np1 np2`,
-`PrepPP prep np = SyntaxEng.mkAdv (mkPrep prep.s) np`. Because `lincat
-NP = NP`/`S = S` throughout, an `AndNP`/`OrNP` result composes
-everywhere a plain `NP` already could (as a `Compl` object, a `Pred`
-subject, ...) with no special-casing elsewhere, and gets RGL's own
-plural-agreement handling for free -- unlike the hand-rolled `Open*`
-family, which fakes agreement via manual string concatenation.
+eight new fixed prepositions -- `OnPP`/`AtPP`/`FromPP`/`ByPP`/`OverPP`/
+`UnderPP`/`DuringPP`/`NearPP : NP -> PP`, alongside the original
+`InPP`/`AboutPP`/`WithPP`/`ForPP`. All linearize through RGL functions
+already reachable via the existing `open SyntaxEng` (no new `open`
+needed -- confirmed against the pinned gf-rgl commit's actual source:
+`Syntax`'s own interface is `Constructors, Cat, Structural, Combinators`,
+and `Constructors.gf` already carries the binary-coordination overloads
+`mkS : Conj -> S -> S -> S` and `mkNP : Conj -> NP -> NP -> NP`, while
+`and_Conj`/`or_Conj` live in `Structural.gf`): `AndS s1 s2 = mkS and_Conj
+s1 s2`, `AndNP np1 np2 = mkNP and_Conj np1 np2`, `NearPP np = SyntaxEng.mkAdv
+(mkPrep "near") np` (and so on for the other seven, exactly like the
+original four already did). Because `lincat NP = NP`/`S = S` throughout,
+an `AndNP`/`OrNP` result composes everywhere a plain `NP` already could
+(as a `Compl` object, a `Pred` subject, ...) with no special-casing
+elsewhere, and gets RGL's own plural-agreement handling for free --
+unlike the hand-rolled `Open*` family, which fakes agreement via manual
+string concatenation.
+
+**A first attempt used one open-ended `PrepPP : String -> NP -> PP`**
+instead of eight fixed ones, parsed the same open-vocabulary way
+`OpenPN`/`EveryCN` already are -- reverted after the first real CI run
+against it. GF's `String` category parses as "match any single token",
+and combined with the grammar's own already-open `OpenPN`/`Open*`
+family, this created a genuine new parse ambiguity: "the political
+agreement" gained a spurious *second* reading as `OpenPN "the"` modified
+by `PrepPP "political" (OpenPN "agreement")` (i.e. "the", reinterpreted
+as an open proper noun, followed by "political" reinterpreted as an
+open preposition governing "agreement") alongside its intended reading
+as an adjective-modified definite NP -- and since `engine parse` returns
+every alternative tree GF finds, `trees[0]` was no longer reliably the
+intended one, breaking three existing tests
+(`test_qid_fiber.py`'s `test_automatic_multi_source_pipelines`,
+`test_unique_and_ambiguous_contextual_contraction`,
+`test_unknown_gf_semantic_composition_fails_closed`) whose fixtures
+depended on that specific sentence parsing unambiguously. A closed,
+named preposition per function has no such ambiguity -- each only ever
+matches its own fixed word, exactly like the original four already did;
+this is why the list above is eight separate functions rather than one
+parameterized one.
 
 `scripts/contextual_rule_compiler.py`'s `compile_gf_constraints` tree
-walker required no structural changes: `first_node`'s recursion already
-walks into any constructor's arguments generically, so it finds a
-`Compl` node nested inside an `AndS` exactly as it would anywhere else,
-and `_noun_lemma`/`_proper_lemma` already degrade to a safe no-op (no
-constraint, no crash) for a constructor shape they do not recognize --
-the same protection a bare-proper-noun object already relied on --
-which is what an `AndNP`/`OrNP` object gets today. `PrepPP` is
-deliberately **not** wired into the existing `ModifyNP`+fixed-preposition
-composition-matrix lookup (`InPP`/`AboutPP`/`WithPP`/`ForPP`'s hardcoded
-table): its preposition is a runtime string, not a fixed constructor
-name, and `context_templates` data has no entries keyed by an arbitrary
-preposition yet. A `PrepPP` modifier still walks safely; it just does
-not (yet) contribute the extra `FrameModifier` constraint those four do
--- a natural follow-up once corresponding `context_templates` data
-exists.
+walker required no structural changes for coordination: `first_node`'s
+recursion already walks into any constructor's arguments generically, so
+it finds a `Compl` node nested inside an `AndS` exactly as it would
+anywhere else, and `_noun_lemma`/`_proper_lemma` already degrade to a
+safe no-op (no constraint, no crash) for a constructor shape they do not
+recognize -- the same protection a bare-proper-noun object already
+relied on -- which is what an `AndNP`/`OrNP` object gets today. The
+eight new prepositions slot directly into the existing
+`ModifyNP`+fixed-preposition composition-matrix table
+(`InPP`/`AboutPP`/`WithPP`/`ForPP`'s hardcoded lookup) the same way the
+original four already do; no `context_templates` data has entries keyed
+by any of the eight yet, so none of them contribute an extra
+`FrameModifier` constraint today, but the wiring is in place for when
+such data is authored.
 
 As with the passive-voice addition, the grammar edit and RGL function
 names are verified against the pinned `gf-rgl` commit's actual source
