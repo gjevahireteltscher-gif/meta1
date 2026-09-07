@@ -20,6 +20,53 @@ def rows(path: Path):
         return [json.loads(line) for line in source if line.strip()]
 
 
+SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+COMMON_ABBREVIATIONS = (
+    "Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "St.", "vs.", "etc.",
+    "Jr.", "Sr.", "Inc.", "Ltd.", "Co.", "U.S.", "U.K.",
+)
+
+
+def sentence_span_containing(text: str, start: int, end: int) -> tuple[int, int]:
+    """The [span_start, span_end) of the single sentence containing
+    [start, end) within a larger, possibly multi-sentence text.
+
+    WiMCor/ConMeC's "sentence" field is really a discourse-level excerpt
+    -- often several sentences long (a real corpus-driven sample went up
+    to 21) -- kept that way on purpose, since lexical_evidence below
+    deliberately scans the *whole* excerpt for context clues. But
+    Metonymy.gf's abstract syntax has exactly one clause-level category
+    (`flags startcat = S`, a handful of Pred/Compl-style constructions,
+    nothing above sentence level), so feeding the entire excerpt to
+    `engine parse` was asking a single-sentence grammar to parse an
+    entire paragraph -- confirmed locally by running this script's own
+    resolve_action against the real corpus-driven sample: every
+    gf_sentence produced was the full multi-sentence excerpt, verb
+    substituted in place, structurally unparseable as one `S` regardless
+    of vocabulary or construction coverage. This narrows gf_sentence to
+    just the sentence containing the action's own span, using a simple
+    period/question/exclamation-mark-plus-capital-letter heuristic (a
+    short common-abbreviation list reduces false splits, e.g. "Dr. Smith"
+    or "U.S. forces"). Deliberately does not touch action["start"]/["end"]
+    themselves, proposal["sentence"], or anything compile_gf_constraints
+    later searches within -- those stay relative to the full excerpt,
+    unaffected by this. Falls back to the whole text if start/end don't
+    fall inside any computed span (should not happen, but never narrows
+    to something that would exclude the action itself).
+    """
+    boundaries = [0]
+    for match in SENTENCE_BOUNDARY.finditer(text):
+        preceding = text[: match.start()]
+        if any(preceding.endswith(abbreviation) for abbreviation in COMMON_ABBREVIATIONS):
+            continue
+        boundaries.append(match.end())
+    boundaries.append(len(text))
+    for span_start, span_end in zip(boundaries, boundaries[1:]):
+        if span_start <= start and end <= span_end:
+            return span_start, span_end
+    return 0, len(text)
+
+
 def load_framenet_snapshot(path: Path, lemma: str) -> tuple[list[dict], list[dict]]:
     manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
     lexical_units = [
@@ -192,14 +239,17 @@ def main() -> None:
         for relation in dict.fromkeys(configured_relations)
         if relation in snapshot_relations
     ] or snapshot_relations
+    gf_scope_start, gf_scope_end = sentence_span_containing(
+        args.sentence, action["start"], action["end"]
+    )
     proposal = {
         "schema_version": "contextual-scenario-proposal-1",
         "graph_sha256": manifest["graph_sha256"],
         "sentence": args.sentence,
         "gf_sentence": (
-            args.sentence[: action["start"]]
+            args.sentence[gf_scope_start : action["start"]]
             + action["gf_form"]
-            + args.sentence[action["end"] :]
+            + args.sentence[action["end"] : gf_scope_end]
         ),
         "source_surface": source_text,
         "source_qid_candidates": sorted(candidates),
