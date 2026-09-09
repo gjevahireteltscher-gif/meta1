@@ -1,5 +1,5 @@
 concrete MetonymyEng of Metonymy =
-  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, ExtraEng, (R=ResEng) in {
+  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, ExtraEng, SentenceEng, (R=ResEng) in {
 
   lincat
     S = S ;
@@ -145,6 +145,44 @@ concrete MetonymyEng of Metonymy =
     OpenSourceNP = mkNP (mkPN "source") ;
     OpenTargetNP = mkNP (mkPN "expanded target") ;
     OpenContextNP = mkNP (mkPN "context") ;
+
+    -- Confirmed via the real, decisive text-free diagnostic added to
+    -- score_contextual_detection.py (exit7_gf_sentence_signals): a
+    -- comma is present in 87%/67% of the remaining WiMCor/ConMeC
+    -- gf-parse-empty rows, far more than the 24%/3% that are still a
+    -- proper-noun-length issue (run-4-or-more, which OpenPN2/OpenPN3
+    -- don't cover). because_Subj/if_Subj/when_Subj/although_Subj are
+    -- already reachable via SyntaxEng (Structural.gf is part of the
+    -- already-open Syntax interface) -- only ExtAdvS/SSubjS themselves
+    -- need the new SentenceEng open, since mkS's own Adv->S->S overload
+    -- routes to AdvS (no comma), not ExtAdvS. Cross-checked SentenceEng's
+    -- exported names against every already-open module before adding
+    -- this open (docs/contextual-tower.md has the full check); found no
+    -- genuine collision, but if CI disagrees, read the full compiler
+    -- warning text as usual, not just the first grep match.
+    BecauseS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv because_Subj embedded) main ;
+    IfS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv if_Subj embedded) main ;
+    WhenS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv when_Subj embedded) main ;
+    AlthoughS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv although_Subj embedded) main ;
+    SBecauseS main embedded = SentenceEng.SSubjS main because_Subj embedded ;
+    SIfS main embedded = SentenceEng.SSubjS main if_Subj embedded ;
+    SWhenS main embedded = SentenceEng.SSubjS main when_Subj embedded ;
+    SAlthoughS main embedded = SentenceEng.SSubjS main although_Subj embedded ;
+
+    -- Short comma-delimited appositive ("Waterloo, Ontario, announces a
+    -- programme"). Deliberately bounded to 1-2 appositive words, not a
+    -- general free-text capture: GF's String parameter matches exactly
+    -- one token during parsing (the same confirmed limit that motivated
+    -- OpenPN2/OpenPN3), so an arbitrary-length appositive would need a
+    -- fundamentally different mechanism (a comma-bracketed recursive
+    -- "list of words" category) -- deliberately deferred, see
+    -- docs/contextual-tower.md, since it carries the same class of
+    -- ambiguity risk that made the PrepPP experiment fail, at a larger,
+    -- locally-unverifiable scale.
+    ApposCommaPN1 name appos =
+      lin NP {s = \\_ => name.s ++ "," ++ appos.s ++ ","; a = R.agrP3 R.Sg} ;
+    ApposCommaPN2 name appos1 appos2 =
+      lin NP {s = \\_ => name.s ++ "," ++ appos1.s ++ appos2.s ++ ","; a = R.agrP3 R.Sg} ;
 
     Anna = mkNP (mkPN "Anna") ;
     Alice = mkNP (mkPN "Alice") ;

@@ -67,6 +67,16 @@ ARITIES = {
     "OpenPN3": 3,
     "OpenIndefCN": 2,
     "OpenDefCN": 2,
+    "BecauseS": 2,
+    "IfS": 2,
+    "WhenS": 2,
+    "AlthoughS": 2,
+    "SBecauseS": 2,
+    "SIfS": 2,
+    "SWhenS": 2,
+    "SAlthoughS": 2,
+    "ApposCommaPN1": 2,
+    "ApposCommaPN2": 3,
 }
 
 

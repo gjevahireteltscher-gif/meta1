@@ -157,6 +157,44 @@ class GfParseDiagnosticMatrix(unittest.TestCase):
     def test_copula_with_three_word_subject(self) -> None:
         self.assert_parses("Shipley School District is a programme")
 
+    # -- BecauseS/IfS/WhenS/AlthoughS/SBecauseS/SIfS/SWhenS/SAlthoughS and
+    # ApposCommaPN1/ApposCommaPN2: added directly in response to the real,
+    # decisive text-free diagnostic in score_contextual_detection.py
+    # (exit7_gf_sentence_signals) -- among sentences still failing
+    # gf-parse-empty after OpenPN2/OpenPN3, a comma is present in 87%/67%
+    # of the remaining WiMCor/ConMeC rows, far more than the 24%/3% that
+    # are still a proper-noun-length issue OpenPN2/OpenPN3 don't cover.
+    # See docs/contextual-tower.md's "Fronted/trailing subordinate
+    # clauses and short comma appositives" section. Only a representative
+    # subset is exercised here (one fronted, one different fronted
+    # conjunction, one trailing, both appositive arities) rather than all
+    # 8 subordinate-clause functions -- each shares the exact same
+    # ExtAdvS/SSubjS + mkAdv + closed-Subj-constant mechanism, differing
+    # only in which fixed, closed-vocabulary word is substituted in, so a
+    # working representative gives strong (not just compiled-without-
+    # error) evidence the whole family works. --
+
+    def test_fronted_because_clause_parses(self) -> None:
+        self.assert_parses(
+            "Because Napoleon announces a programme, Waterloo announces a programme"
+        )
+
+    def test_fronted_when_clause_parses(self) -> None:
+        self.assert_parses(
+            "When Napoleon announces a programme, Waterloo announces a programme"
+        )
+
+    def test_trailing_because_clause_parses(self) -> None:
+        self.assert_parses(
+            "Waterloo announces a programme, because Napoleon announces a programme"
+        )
+
+    def test_short_one_word_appositive_subject_parses(self) -> None:
+        self.assert_parses("Waterloo, Ontario, announces a programme")
+
+    def test_short_two_word_appositive_subject_parses(self) -> None:
+        self.assert_parses("Waterloo, a village, announces a programme")
+
 
 if __name__ == "__main__":
     unittest.main()

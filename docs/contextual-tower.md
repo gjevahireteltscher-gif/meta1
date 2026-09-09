@@ -534,6 +534,83 @@ run's Job Summary will report an exact breakdown of the remaining
 `gf-parse-empty` failures by capitalized-run length and by comma/digit/
 apostrophe presence -- a direct, decisive answer instead of another guess.
 
+**The real breakdown, from the actual next run**: `run-1`/`run-2`/`run-3`
+(already covered by `OpenPN`/`OpenPN2`/`OpenPN3`) made up 76% of WiMCor's
+and 97% of ConMeC's remaining `exit7` rows -- `run-4-or-more`, the case
+that would justify an `OpenPN4`, was only 24%/3%. `has_comma` dominated
+instead: 87% (WiMCor) and 67% (ConMeC). So proper-noun length was never
+the bulk of what was left; a comma somewhere in the sentence -- an
+appositive, a fronted subordinate clause -- was.
+
+### Fronted/trailing subordinate clauses and short comma appositives
+
+Directly targeting that finding, not another guess. Two additions, both
+verified against the pinned gf-rgl commit's actual source before writing
+any grammar code, and both deliberately scoped to what GF can do safely:
+
+- **`BecauseS`/`IfS`/`WhenS`/`AlthoughS : S -> S -> S`** (fronted: "because
+  EMBEDDED, MAIN") and **`SBecauseS`/`SIfS`/`SWhenS`/`SAlthoughS`**
+  (trailing: "MAIN, because EMBEDDED"). Built from RGL's closed `Subj`
+  vocabulary (`because_Subj`/`if_Subj`/`when_Subj`/`although_Subj`,
+  `Structural.gf`, already reachable via the open `Syntax` interface, the
+  same source as `and_Conj`/`or_Conj`) via `SentenceEng`'s `ExtAdvS`/
+  `SSubjS` (`SentenceEng.gf`: `ExtAdvS a s = {s = a.s ++ frontComma ++
+  s.s}`, `frontComma = SOFT_BIND ++ ","` -- a real, literal comma).
+  `mkS`'s own `Adv -> S -> S` overload was not enough here: it routes to
+  `AdvS`, which omits the comma. `SentenceEng` is a new `open` (Sentence.gf
+  isn't part of the `Syntax` interface), cross-checked against every
+  already-open module's exports before adding it (the only name in
+  common, `PredVP`, turned out to be `ExtendEng`'s own internal reference
+  to `SentenceEng.PredVP` via its own `open GrammarEng`, not an
+  independent redeclaration -- not the `which_RP`-class collision it
+  first looked like). Both `S` arguments are built from this grammar's
+  own existing `Pred`/`Compl`/`PredCopNP` -- no open-ended `String`
+  parameter anywhere in this construct, so none of the `PrepPP`-class
+  ambiguity risk.
+- **`ApposCommaPN1`/`ApposCommaPN2 : String -> ... -> NP`** -- a short
+  (1- or 2-word) comma-delimited appositive ("Waterloo, Ontario,
+  announces a programme"), via the exact same hand-rolled
+  string-concatenation idiom `OpenPN`/`OpenPN2`/`OpenPN3` already use, a
+  literal comma spliced into the NP's own string so it plugs directly
+  into the existing `Pred`/`Compl`/`PredCopNP` with no new S-level
+  machinery and no RGL `NP`-internals touched. `Noun.gf`'s real
+  `ApposCN : CN -> NP -> CN` was checked and rejected for this: its
+  English linearization (`NounEng.gf`) does not insert a comma, and it
+  takes a `CN`, not the `NP` this grammar's `OpenPN` family already
+  produces.
+
+**Deliberately deferred, with reasoning, not just noted:**
+
+- **Appositives/parenthetical asides of arbitrary length.** GF's `String`
+  category matches exactly one token during parsing -- confirmed, not
+  assumed (the same limit that motivated `OpenPN2`/`OpenPN3`). A real
+  appositive is often longer than two words ("a county in the U.S. state
+  of Alabama"), and no fixed arity scales to cover that combinatorially.
+  The only GF-native path to unbounded length is a recursive
+  comma-bracketed "list of words" category -- but that is a materially
+  different, higher-ambiguity-risk mechanism than anything in this
+  grammar so far, the same class of risk that made the original `PrepPP`
+  experiment fail, at a scale this repository's toolchain-free machine
+  cannot verify locally. Asked the user explicitly before scoping this
+  batch; the answer was to defer it, not attempt it blind.
+- **Numerals** (the `has_digit` signal: 49%/28%). Weaker, less isolated
+  evidence than `has_comma` -- the two signals are not mutually
+  exclusive, so a comma-caused failure can just as easily also contain an
+  incidental digit. Needs its own narrower diagnostic (e.g. `has_digit`
+  among rows *without* `has_comma`) before designing a construct for it,
+  rather than guessing what grammatical role the number plays (a date? a
+  count?) without that.
+
+`tests/evaluation/test_compile_gf_constraints_subordinate_clauses.py`
+covers the tree-walker contract for both families in pure Python (arity,
+that `first_node` recurses into the wrapped clauses the same way it
+already does for `AndS`/`OrS`, that a short appositive subject degrades
+safely). `tests/evaluation/test_gf_parse_diagnostic_matrix.py` gained
+five real-sentence regression cases (a representative fronted clause, a
+second fronted conjunction, a trailing clause, and both appositive
+arities) -- the decisive check that these constructs actually parse in
+the real compiled grammar, not just compile without error.
+
 ### Cumulative constituent layers
 
 Supported positive constituents are elaborated in their semantic composition

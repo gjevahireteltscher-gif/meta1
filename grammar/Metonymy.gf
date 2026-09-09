@@ -59,6 +59,36 @@ abstract Metonymy = {
     OpenTargetNP : NP ;
     OpenContextNP : NP ;
 
+    -- Fronted/trailing subordinate clauses ("Because X, Y"/"Y, because
+    -- X") -- see grammar/MetonymyEng.gf for why these need SentenceEng's
+    -- ExtAdvS/SSubjS specifically (not the plain mkS : Adv -> S -> S
+    -- overload, which omits the comma). because_Subj/if_Subj/when_Subj/
+    -- although_Subj are closed RGL vocabulary, matching the same
+    -- closed-word-per-function idiom already used for the 8 prepositions
+    -- above -- no open-ended String parameter, so no PrepPP-class
+    -- ambiguity risk.
+    BecauseS : S -> S -> S ;
+    IfS : S -> S -> S ;
+    WhenS : S -> S -> S ;
+    AlthoughS : S -> S -> S ;
+    SBecauseS : S -> S -> S ;
+    SIfS : S -> S -> S ;
+    SWhenS : S -> S -> S ;
+    SAlthoughS : S -> S -> S ;
+
+    -- Short (1-2 word) comma-delimited appositive ("Waterloo, Ontario,
+    -- announces..."), via the same hand-rolled String-concatenation
+    -- idiom OpenPN/OpenPN2/OpenPN3 already use -- a literal comma
+    -- spliced into the NP's own string, so it plugs directly into the
+    -- existing Pred/Compl/PredCopNP with no new S-level machinery.
+    -- Deliberately bounded (not a general free-text capture): GF's
+    -- String parameter matches exactly one token during parsing, so an
+    -- arbitrary-length appositive is not achievable this way -- see
+    -- docs/contextual-tower.md for the full reasoning and what was
+    -- deliberately deferred.
+    ApposCommaPN1 : String -> String -> NP ;
+    ApposCommaPN2 : String -> String -> String -> NP ;
+
     Anna : NP ;
     Alice : NP ;
     Bob : NP ;
