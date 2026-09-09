@@ -10,6 +10,9 @@ sys.path.insert(0, str(ROOT / "scripts" / "evaluation"))
 import json  # noqa: E402
 
 from score_contextual_detection import (  # noqa: E402
+    exit7_gf_sentence_bucket,
+    exit7_gf_sentence_signals,
+    exit7_max_capitalized_run,
     fingerprint_failure_text,
     literal_reason,
     predict,
@@ -283,6 +286,109 @@ class FingerprintFailureTextTests(unittest.TestCase):
         self.assertEqual(fingerprint["length"], len(text))
 
 
+class Exit7MaxCapitalizedRunTests(unittest.TestCase):
+    def test_single_word_proper_noun_gives_a_run_of_one(self) -> None:
+        self.assertEqual(
+            exit7_max_capitalized_run("Waterloo announces a programme"), 1
+        )
+
+    def test_two_word_proper_noun_gives_a_run_of_two(self) -> None:
+        self.assertEqual(
+            exit7_max_capitalized_run("Henry County announces a programme"), 2
+        )
+
+    def test_four_word_proper_noun_gives_a_run_of_four(self) -> None:
+        self.assertEqual(
+            exit7_max_capitalized_run(
+                "The Royal Shipley School announces a programme"
+            ),
+            4,
+        )
+
+    def test_no_capitalized_token_gives_a_run_of_zero(self) -> None:
+        self.assertEqual(exit7_max_capitalized_run("a programme is announced"), 0)
+
+    def test_longest_run_wins_even_when_it_is_not_the_first(self) -> None:
+        self.assertEqual(
+            exit7_max_capitalized_run(
+                "Waterloo announces the Henry County School programme"
+            ),
+            3,
+        )
+
+
+class Exit7GfSentenceBucketTests(unittest.TestCase):
+    def test_run_of_one_is_tagged_run_1(self) -> None:
+        failure = json.dumps(
+            {"status": "gf-parse-empty", "gf_sentence": "Waterloo announces a programme"}
+        )
+        self.assertEqual(exit7_gf_sentence_bucket(failure), "run-1")
+
+    def test_run_of_three_is_tagged_run_3(self) -> None:
+        failure = json.dumps(
+            {
+                "status": "gf-parse-empty",
+                "gf_sentence": "The Shipley School announces a programme",
+            }
+        )
+        self.assertEqual(exit7_gf_sentence_bucket(failure), "run-3")
+
+    def test_run_of_four_or_more_is_bucketed_together(self) -> None:
+        failure = json.dumps(
+            {
+                "status": "gf-parse-empty",
+                "gf_sentence": "The Royal Shipley School District announces a programme",
+            }
+        )
+        self.assertEqual(exit7_gf_sentence_bucket(failure), "run-4-or-more")
+
+    def test_unparseable_failure_text_is_unrecognized_not_a_crash(self) -> None:
+        self.assertEqual(exit7_gf_sentence_bucket("not valid json"), "unrecognized")
+
+    def test_missing_gf_sentence_key_is_unrecognized_not_a_crash(self) -> None:
+        self.assertEqual(
+            exit7_gf_sentence_bucket(json.dumps({"status": "gf-parse-empty"})),
+            "unrecognized",
+        )
+
+    def test_never_leaks_the_gf_sentence_itself(self) -> None:
+        failure = json.dumps(
+            {
+                "status": "gf-parse-empty",
+                "gf_sentence": "The Kremlin announces Henry County programme",
+            }
+        )
+        bucket = exit7_gf_sentence_bucket(failure)
+        self.assertNotIn("Kremlin", bucket)
+        self.assertNotIn("Henry", bucket)
+
+
+class Exit7GfSentenceSignalsTests(unittest.TestCase):
+    def test_detects_comma_digit_and_apostrophe(self) -> None:
+        failure = json.dumps(
+            {
+                "status": "gf-parse-empty",
+                "gf_sentence": "Waterloo, Ontario's 1873 programme announces itself",
+            }
+        )
+        self.assertEqual(
+            exit7_gf_sentence_signals(failure),
+            {"has_comma": True, "has_digit": True, "has_apostrophe": True},
+        )
+
+    def test_plain_sentence_has_no_signals(self) -> None:
+        failure = json.dumps(
+            {"status": "gf-parse-empty", "gf_sentence": "Waterloo announces a programme"}
+        )
+        self.assertEqual(
+            exit7_gf_sentence_signals(failure),
+            {"has_comma": False, "has_digit": False, "has_apostrophe": False},
+        )
+
+    def test_unparseable_failure_text_returns_none_not_a_crash(self) -> None:
+        self.assertIsNone(exit7_gf_sentence_signals("not valid json"))
+
+
 class ScoreTests(unittest.TestCase):
     def test_true_positive_true_negative_false_positive_false_negative(self) -> None:
         inference = [
@@ -372,6 +478,69 @@ class ScoreTests(unittest.TestCase):
         gold = [{"id": "a", "gold_label": "literal", "gold_bridge_family": None}]
         report = score(inference, gold)
         self.assertEqual(report["unrecognized_fingerprints"], [])
+
+    def test_exit7_rows_are_bucketed_by_capitalized_run_in_literal_prediction_reasons(
+        self,
+    ) -> None:
+        def exit7_row(id_: str, gf_sentence: str) -> dict:
+            return {
+                "id": id_,
+                "status": "failed",
+                "exit_code": 7,
+                "failure": json.dumps(
+                    {"status": "gf-parse-empty", "gf_sentence": gf_sentence}
+                ),
+                "fiber": [],
+                "stages": [],
+            }
+
+        inference = [
+            exit7_row("a", "Waterloo announces a programme"),
+            exit7_row("b", "The Royal Shipley School announces a programme"),
+        ]
+        gold = [
+            {"id": "a", "gold_label": "literal", "gold_bridge_family": None},
+            {"id": "b", "gold_label": "literal", "gold_bridge_family": None},
+        ]
+        report = score(inference, gold)
+        self.assertEqual(
+            report["literal_prediction_reasons"],
+            {"failed:exit7:run-1": 1, "failed:exit7:run-4-or-more": 1},
+        )
+
+    def test_exit7_signal_counts_aggregate_across_rows_without_leaking_text(
+        self,
+    ) -> None:
+        def exit7_row(id_: str, gf_sentence: str) -> dict:
+            return {
+                "id": id_,
+                "status": "failed",
+                "exit_code": 7,
+                "failure": json.dumps(
+                    {"status": "gf-parse-empty", "gf_sentence": gf_sentence}
+                ),
+                "fiber": [],
+                "stages": [],
+            }
+
+        inference = [
+            exit7_row("a", "Waterloo, Ontario announces a programme"),
+            exit7_row("b", "Waterloo's programme announces itself"),
+            exit7_row("c", "Waterloo announces a programme"),
+        ]
+        gold = [
+            {"id": "a", "gold_label": "literal", "gold_bridge_family": None},
+            {"id": "b", "gold_label": "literal", "gold_bridge_family": None},
+            {"id": "c", "gold_label": "literal", "gold_bridge_family": None},
+        ]
+        report = score(inference, gold)
+        self.assertEqual(report["exit7_rows_seen"], 3)
+        self.assertEqual(
+            report["exit7_signal_counts"],
+            {"has_apostrophe": 1, "has_comma": 1, "has_digit": 0},
+        )
+        self.assertNotIn("Waterloo", json.dumps(report))
+        self.assertNotIn("Ontario", json.dumps(report))
 
     def test_repeated_unrecognized_failure_text_groups_into_one_fingerprint(
         self,

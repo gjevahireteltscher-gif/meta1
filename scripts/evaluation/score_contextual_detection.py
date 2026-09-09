@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -172,6 +173,79 @@ def exit2_candidate_bucket(failure_text: str) -> str:
     return "ambiguous-candidates"
 
 
+def exit7_max_capitalized_run(gf_sentence: str) -> int:
+    """Longest run of consecutive capitalized word-tokens in gf_sentence.
+
+    A safe, content-free proxy for "how many tokens long is the proper-
+    noun span GF was actually asked to parse". grammar/Metonymy.gf's
+    OpenPN/OpenPN2/OpenPN3 cover spans of exactly 1/2/3 tokens
+    respectively (see docs/contextual-tower.md's "OpenPN only matches one
+    token" section) -- so among rows that still fail with gf-parse-empty
+    after that fix, a run of 4+ is a direct structural signal that the
+    row is the *same* class of gap OpenPN2/OpenPN3 were built to close,
+    just one token longer than either covers; a run of 1-3 means
+    something else caused that particular row to fail, since the grammar
+    already has a matching NP-building alternative for spans that short.
+    """
+    tokens = re.findall(r"[A-Za-z][A-Za-z'-]*", gf_sentence)
+    longest = current = 0
+    for token in tokens:
+        if token[:1].isupper():
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return longest
+
+
+def exit7_gf_sentence_bucket(failure_text: str) -> str:
+    """Bucket an exit-7 (gf-parse-empty) row by its longest capitalized
+    token run -- never by any of its actual text.
+
+    Mirrors exit2_candidate_bucket's approach: parse the JSON
+    run_automatic_contextual_pipeline.py already prints on this path
+    (`{"status": "gf-parse-empty", "gf_sentence": ...}`), derive a
+    content-free structural feature from it, and report only the derived
+    bucket -- never the sentence itself, which is exactly why this
+    workflow cannot upload raw inference rows as a CI artifact in the
+    first place. Falls back to "unrecognized" on anything unparseable,
+    the same degrade-gracefully policy exit2_candidate_bucket uses.
+    """
+    try:
+        gf_sentence = json.loads(failure_text)["gf_sentence"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return "unrecognized"
+    run = exit7_max_capitalized_run(gf_sentence)
+    if run <= 0:
+        return "run-0"
+    if run >= 4:
+        return "run-4-or-more"
+    return f"run-{run}"
+
+
+def exit7_gf_sentence_signals(failure_text: str) -> dict[str, bool] | None:
+    """Three more content-free structural flags for an exit-7 row.
+
+    Aggregated by score() into "exit7_signal_counts" -- never reported
+    per-row -- to check this session's other standing hypotheses
+    (appositive/fronted-clause commas, numerals, possessive 's) against
+    the real corpus independently of the capitalized-run bucket above,
+    from the same already-parsed gf_sentence, still never exposing it.
+    Returns None on anything unparseable (same policy as the bucket
+    function above), so a caller can skip aggregating a row it can't
+    read rather than counting a false negative for every flag.
+    """
+    try:
+        gf_sentence = json.loads(failure_text)["gf_sentence"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    return {
+        "has_comma": "," in gf_sentence,
+        "has_digit": any(character.isdigit() for character in gf_sentence),
+        "has_apostrophe": "'" in gf_sentence,
+    }
+
+
 def literal_reason(inference_row: dict) -> str:
     """A text-free tag for why a row predicted "literal" -- status plus
     exit code (run_automatic_contextual_pipeline.py uses a distinct exit
@@ -216,9 +290,10 @@ def literal_reason(inference_row: dict) -> str:
     GENERIC_RUNTIME_CRASH_TOKENS (see its own comment for why a separate,
     broader pass exists), and reports only the matched token name, or
     "failed:exit1:unrecognized" if neither matches. Exit 2 similarly gets
-    a sub-tag from exit2_candidate_bucket -- see its own docstring.
-    Carries no sentence text either way, so this is safe to upload as a
-    CI artifact even though the inference row it's drawn from is not.
+    a sub-tag from exit2_candidate_bucket, and exit 7 one from
+    exit7_gf_sentence_bucket -- see each one's own docstring. Carries no
+    sentence text either way, so this is safe to upload as a CI artifact
+    even though the inference row it's drawn from is not.
     """
     if inference_row.get("status") == "ok":
         return "ok:empty-fiber"
@@ -234,6 +309,8 @@ def literal_reason(inference_row: dict) -> str:
         return "failed:exit1:unrecognized"
     if exit_code == 2:
         return f"failed:exit2:{exit2_candidate_bucket(inference_row.get('failure', ''))}"
+    if exit_code == 7:
+        return f"failed:exit7:{exit7_gf_sentence_bucket(inference_row.get('failure', ''))}"
     return f"failed:exit{exit_code}"
 
 
@@ -266,6 +343,10 @@ def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
     missing = 0
     literal_prediction_reasons: Counter[str] = Counter()
     unrecognized_fingerprints: Counter[tuple[str, int]] = Counter()
+    exit7_signal_counts: Counter[str] = Counter(
+        {"has_comma": 0, "has_digit": 0, "has_apostrophe": 0}
+    )
+    exit7_rows_seen = 0
     for gold in gold_rows:
         inference_row = inference_by_id.get(gold["id"])
         if inference_row is None:
@@ -289,6 +370,13 @@ def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
                 unrecognized_fingerprints[
                     (fingerprint["sha256_prefix"], fingerprint["length"])
                 ] += 1
+            if inference_row.get("exit_code") == 7:
+                exit7_rows_seen += 1
+                signals = exit7_gf_sentence_signals(inference_row.get("failure", ""))
+                if signals:
+                    for name, present in signals.items():
+                        if present:
+                            exit7_signal_counts[name] += 1
 
     precision = (
         true_positive / (true_positive + false_positive)
@@ -318,6 +406,8 @@ def score(inference_rows: list[dict], gold_rows: list[dict]) -> dict:
         "recall": recall,
         "f1": f1,
         "literal_prediction_reasons": dict(sorted(literal_prediction_reasons.items())),
+        "exit7_rows_seen": exit7_rows_seen,
+        "exit7_signal_counts": dict(sorted(exit7_signal_counts.items())),
         "unrecognized_fingerprints": [
             {"sha256_prefix": prefix, "length": length, "count": count}
             for (prefix, length), count in sorted(

@@ -485,6 +485,55 @@ certainly also affects `OpenIndefCN`/`OpenDefCN` for multi-word common nouns
 scope here, to keep this fix focused on the one root cause that has direct,
 decisive evidence.
 
+**Real corpus measurement after the fix**: recall stayed 0.0 on both
+corpora, but the effect was not uniformly zero this time -- the first
+non-zero shift after four rounds. WiMCor's `literal_prediction_reasons`
+came back byte-identical to the pre-fix baseline; ConMeC's `gf-parse-empty`
+count dropped from 92 to 86, with those 6 rows moving on to
+`semantic-composition-failed` (2), a reached-but-empty fiber (3), and one
+row that ran all the way through to a (gold-incorrect) metonymic
+prediction. So the fix does something real on ConMeC and nothing
+measurable on WiMCor -- and, since the corpus sample's raw sentence text
+is never uploaded, there was no way to ask *why* without another guess.
+
+### A structural, text-free diagnostic for the remaining `gf-parse-empty` rows
+
+To answer that without guessing a fifth time, `score_contextual_detection.py`
+now derives two content-free structural signals from each surviving
+exit-7 row's own already-printed `gf_sentence` field (never uploading the
+field itself, the same discipline `exit2_candidate_bucket` already
+established for exit 2):
+
+- **`exit7_max_capitalized_run`/`exit7_gf_sentence_bucket`** -- the longest
+  run of consecutive capitalized tokens in `gf_sentence`, a proxy for how
+  many tokens long the proper-noun span GF was actually asked to parse is.
+  `literal_reason` now tags exit-7 rows `failed:exit7:run-1`/`run-2`/
+  `run-3`/`run-4-or-more`/`run-0`/`unrecognized` instead of the old flat
+  `failed:exit7`. A dominant `run-4-or-more` bucket among the remaining
+  failures would directly confirm the same one-token-per-`Open*`-slot gap
+  extends past what `OpenPN2`/`OpenPN3` cover (motivating an `OpenPN4`, or
+  a proper list-based `String* -> NP` construction instead of hand-rolling
+  a fixed arity per length); a dominant `run-1`/`run-2`/`run-3` bucket
+  would instead mean the remaining failures are a *different* cause
+  entirely, since the grammar already has a matching alternative for
+  spans that short.
+- **`exit7_gf_sentence_signals`/`exit7_signal_counts`** -- three more
+  content-free booleans (`has_comma`, `has_digit`, `has_apostrophe`) from
+  the same `gf_sentence`, aggregated as corpus-wide counts (never per-row)
+  in `score()`'s new `exit7_signal_counts` output field, alongside
+  `exit7_rows_seen` for the denominator. Tests this session's other
+  standing hypotheses -- appositives/fronted clauses (comma), numerals,
+  possessive `'s` -- against the real corpus, independently of the
+  capitalized-run bucket above.
+
+`tests/evaluation/test_score_contextual_detection.py` covers all of the
+above in pure Python (bucket boundaries, the four-signal detector, safe
+degradation on unparseable input, and that aggregate counts never leak the
+underlying `gf_sentence` text). The next `contextual-tower-evaluation.yml`
+run's Job Summary will report an exact breakdown of the remaining
+`gf-parse-empty` failures by capitalized-run length and by comma/digit/
+apostrophe presence -- a direct, decisive answer instead of another guess.
+
 ### Cumulative constituent layers
 
 Supported positive constituents are elaborated in their semantic composition
