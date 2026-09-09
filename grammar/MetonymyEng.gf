@@ -106,6 +106,27 @@ concrete MetonymyEng of Metonymy =
     Announce = mkV2 "announce" ;
     OpenPN name =
       lin NP {s = \\_ => name.s ; a = R.agrP3 R.Sg} ;
+    -- Confirmed via a dedicated CI diagnostic (test_gf_parse_diagnostic_matrix.py),
+    -- not guessed: OpenPN's single `String` slot matches exactly one
+    -- token when parsing, so a two-word name ("Henry County") never
+    -- completed a derivation at all -- "Henry" alone via OpenPN, then
+    -- nothing in the grammar could account for "County" immediately
+    -- following it in subject position ("The parser failed at token 2:
+    -- \"County\""). Most real WiMCor/ConMeC source mentions (place,
+    -- institution, and person names) are two or three words, so this
+    -- was blocking GF-parsing for a large fraction of sentences
+    -- regardless of any sentence-level construction added elsewhere --
+    -- explaining three consecutive contextual-tower-evaluation.yml runs
+    -- that each measured zero effect from otherwise-correct grammar
+    -- additions. OpenPN2/OpenPN3 give GF's chart parser an additional,
+    -- explicit derivation to try for a two- or three-token span; they do
+    -- not replace OpenPN (still tried for the one-token case), just add
+    -- alternatives, exactly like Compl/PassCompl already coexist for the
+    -- one VP-building slot.
+    OpenPN2 first second =
+      lin NP {s = \\_ => first.s ++ second.s ; a = R.agrP3 R.Sg} ;
+    OpenPN3 first second third =
+      lin NP {s = \\_ => first.s ++ second.s ++ third.s ; a = R.agrP3 R.Sg} ;
     OpenIndefCN singular plural =
       lin NP {
         s = \\_ => "a" ++ singular.s ;

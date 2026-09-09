@@ -15,7 +15,7 @@ decisive, the same way `test_wordnet_cn_relative_clause_parses_in_gf`
 was decisive for the which_RP collision -- no corpus-derived guessing
 required.
 
-Leading hypothesis this batch is built to confirm or refute: `OpenPN :
+Leading hypothesis this batch was built to confirm or refute: `OpenPN :
 String -> NP` is the only way this grammar represents a proper noun, and
 every *proven*-working example sentence anywhere in this project's tests
 so far ("Waterloo announces...", "Moscow signs...", "Anna examines...")
@@ -26,6 +26,17 @@ OpenPN slot in this grammar, no amount of additional sentence-level
 grammar (coordination, copula, relative clauses, genitive -- all already
 added and all measuring zero effect) can matter, because the subject NP
 itself never parses in the first place.
+
+**Confirmed by this file's own first real CI run**: the single-word
+baseline and single-word-subject copula test passed; all four multi-word
+tests failed, each exactly at the second token ("The parser failed at
+token 2: \"County\""). `OpenPN2`/`OpenPN3` (`grammar/Metonymy.gf`,
+`grammar/MetonymyEng.gf`) were added directly in response -- additional
+NP-building alternatives for a two- or three-token span, coexisting with
+(not replacing) `OpenPN`. The tests below are unchanged in what they
+assert (a multi-word name must parse); this file is now the regression
+check that the fix actually closes the gap it found, plus two new
+`OpenPN3` cases the original diagnostic round didn't need to reach.
 
 **Verb tense correction from this file's own first CI run**: every
 sentence below uses present tense, third person singular
@@ -135,6 +146,16 @@ class GfParseDiagnosticMatrix(unittest.TestCase):
 
     def test_copula_with_two_word_subject(self) -> None:
         self.assert_parses("Henry County is a programme")
+
+    # -- OpenPN3: three-token span, both positions. Same rationale as the
+    # two-word tests above, extended to the three-word case (e.g. "The
+    # Shipley School") that OpenPN2 alone still cannot cover. --
+
+    def test_three_word_proper_noun_object(self) -> None:
+        self.assert_parses("Waterloo announces Shipley School programme")
+
+    def test_copula_with_three_word_subject(self) -> None:
+        self.assert_parses("Shipley School District is a programme")
 
 
 if __name__ == "__main__":

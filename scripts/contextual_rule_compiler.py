@@ -63,6 +63,8 @@ ARITIES = {
     "OpenAdjDefCN": 3,
     "OpenAdjIndefCN": 3,
     "OpenPN": 1,
+    "OpenPN2": 2,
+    "OpenPN3": 3,
     "OpenIndefCN": 2,
     "OpenDefCN": 2,
 }
@@ -414,13 +416,22 @@ def _noun_lemma(node: GFNode | str) -> str | None:
 
 
 def _proper_lemma(node: GFNode | str) -> str | None:
+    if not isinstance(node, GFNode):
+        return None
     if (
-        isinstance(node, GFNode)
-        and node.constructor == "OpenPN"
+        node.constructor == "OpenPN"
         and node.arguments
         and isinstance(node.arguments[0], str)
     ):
         return node.arguments[0]
+    if node.constructor in {"OpenPN2", "OpenPN3"} and all(
+        isinstance(argument, str) for argument in node.arguments
+    ):
+        # Space-joined, matching how a multi-word alias is actually
+        # stored in aliases.jsonl (the lookup this lemma ultimately
+        # feeds) -- see OpenPN2/OpenPN3's own comment in
+        # grammar/MetonymyEng.gf for why they exist at all.
+        return " ".join(node.arguments)
     return None
 
 

@@ -427,6 +427,64 @@ WordNet-generated common nouns inside relative clauses. Programme heads still
 derive hard `Conducts(_, topic-QID)`; institution/organization locatives and
 partner PPs are preferences.
 
+### The real root cause of three zero-effect grammar rounds: `OpenPN` only matches one token
+
+Three consecutive rounds of grammar expansion above (S-level coordination
+plus 8 prepositions, then VP coordination, then the copula/relative-clause/
+genitive batch) each compiled cleanly in CI and each measured *exactly zero
+effect* on `literal_prediction_reasons` for the real `contextual-tower-evaluation.yml`
+corpus sample -- byte-identical counts before and after, every time. That
+workflow deliberately never uploads raw sentence text as a CI artifact (only
+the aggregate, text-free score report), so no amount of rewriting it could
+narrow this down further; isolating the true cause needed a fundamentally
+different diagnostic.
+
+`tests/evaluation/test_gf_parse_diagnostic_matrix.py` is that diagnostic: a
+small set of hand-written sentences (never corpus text, so safe to print in
+full in a CI log), run through `build/metonymy parse` directly in the fast,
+cheap `ci.yml` instead of the slow, opaque `contextual-tower-evaluation.yml`.
+Its first real CI run was decisive: the single-word baseline
+("Waterloo announces a programme") and the single-word-subject copula test
+both passed; all four multi-word tests ("Henry County announces a
+programme", "Waterloo announces Henry County", "Shipley School announces a
+programme", "Henry County is a programme") failed, each at exactly the
+second token (`"The parser failed at token 2: \"County\""`).
+
+The cause: `OpenPN : String -> NP`'s single `String` slot matches exactly
+one token when GF parses -- not an arbitrary-length span. A multi-word
+proper noun never completes a derivation via `OpenPN` alone: "Henry" parses
+as the whole NP, and nothing in the grammar can then account for "County"
+immediately following it in subject position. Most real WiMCor/ConMeC
+source mentions (place, institution, and person names) are two or three
+words, so this was silently blocking GF-parsing for a large fraction of
+sentences regardless of what sentence-level construction existed elsewhere
+-- explaining why coordination, the copula, relative clauses, and the
+genitive each measured zero effect: none of them can matter if the
+subject/object NP itself never parses.
+
+**Fix**: `OpenPN2 : String -> String -> NP` and
+`OpenPN3 : String -> String -> String -> NP`, added as additional
+NP-building alternatives (not replacements -- `OpenPN` is still tried for
+the one-token case), linearized by concatenating two or three token strings
+respectively. `scripts/contextual_rule_compiler.py`'s `_proper_lemma` --
+used by `ModifyNP`'s PP-modifier composition-matrix path to resolve a
+target's alias -- recognizes both new constructors and returns their
+space-joined lemma, the same multi-word name GF actually saw.
+`tests/evaluation/test_open_pn_multi_word.py` covers the arity table and
+`_proper_lemma` in pure Python; `test_gf_parse_diagnostic_matrix.py` gained
+two more cases (`OpenPN3` at both ends of a sentence) and now serves as the
+regression check that this fix actually closes the gap it found.
+
+This is the first grammar addition this session with a plausible mechanism
+to produce a genuinely non-zero measured effect on the real corpus sample,
+since it removes a structural blocker that sat *underneath* every prior
+addition rather than adding another sentence-level construction next to
+them. The natural follow-up -- the same one-token-only limitation almost
+certainly also affects `OpenIndefCN`/`OpenDefCN` for multi-word common nouns
+("census-designated place", "research institute") -- is deliberately out of
+scope here, to keep this fix focused on the one root cause that has direct,
+decisive evidence.
+
 ### Cumulative constituent layers
 
 Supported positive constituents are elaborated in their semantic composition
