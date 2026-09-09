@@ -553,20 +553,36 @@ any grammar code, and both deliberately scoped to what GF can do safely:
   (trailing: "MAIN, because EMBEDDED"). Built from RGL's closed `Subj`
   vocabulary (`because_Subj`/`if_Subj`/`when_Subj`/`although_Subj`,
   `Structural.gf`, already reachable via the open `Syntax` interface, the
-  same source as `and_Conj`/`or_Conj`) via `SentenceEng`'s `ExtAdvS`/
-  `SSubjS` (`SentenceEng.gf`: `ExtAdvS a s = {s = a.s ++ frontComma ++
-  s.s}`, `frontComma = SOFT_BIND ++ ","` -- a real, literal comma).
-  `mkS`'s own `Adv -> S -> S` overload was not enough here: it routes to
-  `AdvS`, which omits the comma. `SentenceEng` is a new `open` (Sentence.gf
-  isn't part of the `Syntax` interface), cross-checked against every
-  already-open module's exports before adding it (the only name in
-  common, `PredVP`, turned out to be `ExtendEng`'s own internal reference
-  to `SentenceEng.PredVP` via its own `open GrammarEng`, not an
-  independent redeclaration -- not the `which_RP`-class collision it
-  first looked like). Both `S` arguments are built from this grammar's
-  own existing `Pred`/`Compl`/`PredCopNP` -- no open-ended `String`
-  parameter anywhere in this construct, so none of the `PrepPP`-class
-  ambiguity risk.
+  same source as `and_Conj`/`or_Conj`) combined with `SyntaxEng.mkAdv`'s
+  own `Subj -> S -> Adv` overload (`= SubjS`, `Constructors.gf`) -- no
+  new `open` needed for that half.
+  **First attempt** built the comma the RGL-native way, via
+  `SentenceEng.ExtAdvS`/`SSubjS` (`ExtAdvS a s = {s = a.s ++ frontComma ++
+  s.s}`, `frontComma = SOFT_BIND ++ ","`); this compiled cleanly (no
+  collision -- `SentenceEng`'s exports were cross-checked against every
+  already-open module first, the only name in common, `PredVP`, turned
+  out to be `ExtendEng`'s own internal reference via its own `open
+  GrammarEng`, not an independent redeclaration) but a real CI run showed
+  it does not *parse*: `"Because Napoleon announces a programme, Waterloo
+  announces a programme"` failed at token 7 (`"announces"`), the trailing
+  form similarly. `SOFT_BIND` fuses the comma onto the preceding word as
+  one glued terminal for linearization/pretty-printing, which does not
+  line up with how this grammar's own `String`-based vocabulary
+  (`OpenIndefCN`'s `"programme"`, etc.) tokenizes elsewhere, so the two
+  derivations disagree at the token level -- a compiles-but-doesn't-parse
+  failure of the exact kind this session has learned to expect from
+  RGL's own comma/BIND machinery, distinct from a compile-time collision.
+  **Fixed** by dropping `SentenceEng` (and the whole `ExtAdvS`/`SSubjS`
+  path) entirely and hand-rolling the comma the same proven way
+  `ApposCommaPN1`/`ApposCommaPN2` already do -- a *plain* literal `","`
+  via ordinary `Str` concatenation, no `BIND`. `S`'s RGL record
+  (`CatEng.gf`: `S = {s : Str}`) is exactly as simple as `NP`'s, so
+  `BecauseS embedded main = lin S {s = (SyntaxEng.mkAdv because_Subj
+  embedded).s ++ "," ++ main.s}` hand-rolls the whole thing directly, the
+  same idiom already used for every `Open*`/`ApposCommaPN*` constructor.
+  Both `S` arguments are built from this grammar's own existing
+  `Pred`/`Compl`/`PredCopNP` -- no open-ended `String` parameter anywhere
+  in this construct, so none of the `PrepPP`-class ambiguity risk.
 - **`ApposCommaPN1`/`ApposCommaPN2 : String -> ... -> NP`** -- a short
   (1- or 2-word) comma-delimited appositive ("Waterloo, Ontario,
   announces a programme"), via the exact same hand-rolled

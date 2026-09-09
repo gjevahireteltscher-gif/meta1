@@ -1,5 +1,5 @@
 concrete MetonymyEng of Metonymy =
-  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, ExtraEng, SentenceEng, (R=ResEng) in {
+  open SyntaxEng, ExtendEng, VerbEng, ParadigmsEng, ExtraEng, (R=ResEng) in {
 
   lincat
     S = S ;
@@ -153,21 +153,43 @@ concrete MetonymyEng of Metonymy =
     -- proper-noun-length issue (run-4-or-more, which OpenPN2/OpenPN3
     -- don't cover). because_Subj/if_Subj/when_Subj/although_Subj are
     -- already reachable via SyntaxEng (Structural.gf is part of the
-    -- already-open Syntax interface) -- only ExtAdvS/SSubjS themselves
-    -- need the new SentenceEng open, since mkS's own Adv->S->S overload
-    -- routes to AdvS (no comma), not ExtAdvS. Cross-checked SentenceEng's
-    -- exported names against every already-open module before adding
-    -- this open (docs/contextual-tower.md has the full check); found no
-    -- genuine collision, but if CI disagrees, read the full compiler
-    -- warning text as usual, not just the first grep match.
-    BecauseS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv because_Subj embedded) main ;
-    IfS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv if_Subj embedded) main ;
-    WhenS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv when_Subj embedded) main ;
-    AlthoughS embedded main = SentenceEng.ExtAdvS (SyntaxEng.mkAdv although_Subj embedded) main ;
-    SBecauseS main embedded = SentenceEng.SSubjS main because_Subj embedded ;
-    SIfS main embedded = SentenceEng.SSubjS main if_Subj embedded ;
-    SWhenS main embedded = SentenceEng.SSubjS main when_Subj embedded ;
-    SAlthoughS main embedded = SentenceEng.SSubjS main although_Subj embedded ;
+    -- already-open Syntax interface), likewise SyntaxEng.mkAdv's own
+    -- Subj->S->Adv overload.
+    --
+    -- First attempt used SentenceEng.ExtAdvS/SSubjS directly (RGL's own
+    -- comma-inserting combinators, `a.s ++ frontComma ++ s.s` with
+    -- `frontComma = SOFT_BIND ++ ","`) -- confirmed by a real CI run to
+    -- NOT parse ("Because Napoleon announces a programme, Waterloo
+    -- announces a programme" failed at token 7, "announces"; the
+    -- trailing form failed similarly). SOFT_BIND fuses the comma onto
+    -- the preceding word as one glued terminal for linearization, which
+    -- does not match how this grammar's own String-based vocabulary
+    -- (OpenIndefCN's "programme", etc.) is tokenized elsewhere, so the
+    -- two derivations disagree at the token level. The very same CI run
+    -- proved the fix: ApposCommaPN1/ApposCommaPN2 below, which splice in
+    -- a *plain* literal "," (no BIND) via ordinary Str concatenation,
+    -- parsed successfully. So these fronted/trailing clauses now use
+    -- that identical, already-proven idiom instead of ExtAdvS/SSubjS --
+    -- hand-rolling the S record directly (S = {s : Str} in RGL's
+    -- CatEng.gf, exactly as simple as NP's own s field) rather than
+    -- going through SentenceEng at all, which also means no new `open`
+    -- is needed here any more.
+    BecauseS embedded main =
+      lin S {s = (SyntaxEng.mkAdv because_Subj embedded).s ++ "," ++ main.s} ;
+    IfS embedded main =
+      lin S {s = (SyntaxEng.mkAdv if_Subj embedded).s ++ "," ++ main.s} ;
+    WhenS embedded main =
+      lin S {s = (SyntaxEng.mkAdv when_Subj embedded).s ++ "," ++ main.s} ;
+    AlthoughS embedded main =
+      lin S {s = (SyntaxEng.mkAdv although_Subj embedded).s ++ "," ++ main.s} ;
+    SBecauseS main embedded =
+      lin S {s = main.s ++ "," ++ (SyntaxEng.mkAdv because_Subj embedded).s} ;
+    SIfS main embedded =
+      lin S {s = main.s ++ "," ++ (SyntaxEng.mkAdv if_Subj embedded).s} ;
+    SWhenS main embedded =
+      lin S {s = main.s ++ "," ++ (SyntaxEng.mkAdv when_Subj embedded).s} ;
+    SAlthoughS main embedded =
+      lin S {s = main.s ++ "," ++ (SyntaxEng.mkAdv although_Subj embedded).s} ;
 
     -- Short comma-delimited appositive ("Waterloo, Ontario, announces a
     -- programme"). Deliberately bounded to 1-2 appositive words, not a
